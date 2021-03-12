@@ -14,8 +14,11 @@ def logbarrierfunc(delta, z, usesigma):
     return np.where(z > delta, -np.log(np.abs(z)), ((k-1)/k)*(((z-k*delta)/((k-1)*delta))**k-1) - np.log(delta))
 
 
-def matrify(x, constants):
+def matrify(res, constants):
     """Transforms a flattened vector of control points to a matrix"""
+    x = res[:-1] if constants['T'] == 0 else res
+    t_final = res[-1] if constants['T'] == 0 else constants['T']
+
     x = x.reshape((constants['Nv'], -1))
     x_mat = [
         np.concatenate((
@@ -28,7 +31,7 @@ def matrify(x, constants):
         ), axis=1)[:, :, np.newaxis]  # .reshape((constants['N']+1, constants['numvars']+constants['numinputs'], 1))
         for i in range(constants['Nv'])]
     # return np.reshape(x, (constants['N'] - 1, constants['numvars'], constants['Nv']))
-    return np.concatenate(x_mat, axis=2)
+    return np.concatenate(x_mat, axis=2), t_final
 
 
 def costfun(x, constants):
@@ -40,15 +43,14 @@ def costfun(x, constants):
         j += np.sum(logbarrierfunc(0.1, c, constants['usesigma']))
         j += 1e5 * np.sum(logbarrierfunc(0.01, -(ceq ** 2), constants['usesigma']))
 
-    x = matrify(x, constants)
+    x, t_final = matrify(x, constants)
     j += np.sum([constants['costfun_single'](x[:, :, i], constants) for i in range(constants['Nv'])])
-
     return j
 
 
 def eqconstr(x, constants):
     """Deals with the equality constraints"""
-    x = matrify(x, constants)
+    x, _ = matrify(x, constants)
     return np.concatenate([constants['dynamics'](x[:, :, i], constants) for i in range(constants['Nv'])])
     #    # initial and final conditions
     #    constraints = [
@@ -80,7 +82,7 @@ def variablebounds(constants):
 
 def ineqconstr(x, constants):
     """ Deals with nonlinear inequality constraints"""
-    x = matrify(x, constants)
+    x, t_final = matrify(x, constants)
     c = []
 
     # inter vehicles
@@ -135,6 +137,8 @@ def run_problem(constants):
     constants = processconstants(constants)  # preserves the original constants dict
 
     xin = constants.get('init_guess', randinitguess)(constants)
+    xin = np.concatenate(xin, 1) if constants['T'] == 0 else xin
+
     opts = {'disp': True, 'maxiter': 1000}
     xuc = []
     res = []
@@ -150,17 +154,17 @@ def run_problem(constants):
         if constants['uselogbar']:
             print('Doing alg for vehicle: ' + str(i))
             res = minimize(costfun, xin[:, i], args=constants2, method='Nelder-Mead', options=opts)
-            xuc.append(res.x)
+            xuc.append(res.x[:-1 if constants['T'] == 0 else None])
         else:
             res = minimize(costfun, xin[:, i], args=constants2, method='SLSQP', options=opts, constraints=cons2)
-            xuc.append(res.x)
+            xuc.append(res.x[:-1 if constants['T'] == 0 else None])
         singtimes.append(time()-t)
         print('Elapsed time for vehicle '+str(i) + ': ' + str(singtimes[-1]) + ' s.')
 
     xuc = np.concatenate(xuc)
 
     if not constants['obstacles'] and constants['Nv'] == 1:
-        return res, singtimes[0], singtimes
+        return xuc, t_final, res.fun, singtimes[0], singtimes
 
     cons = (
         {'type': 'eq', 'fun': lambda x: eqconstr(x, constants)},
@@ -175,26 +179,25 @@ def run_problem(constants):
         res = minimize(costfun, xuc, args=constants, method='SLSQP', bounds=bnds, constraints=cons, options=opts)
     elapsedtime = time()-t
     print('Elapsed time for joined up problem: ' + str(elapsedtime) + ' s.')
-    return res, elapsedtime, singtimes
+    return res.x, t_final, res.fun, elapsedtime, singtimes
 
 
-def plot_xy(res, constants):
+def plot_xy(x, t_final, constants):
     """Plots the variables"""
     constants = processconstants(constants)
-    x = res.x
     _, ax = plt.subplots()
     ax.axis('equal')
     ax.set_xlabel('y')
     ax.set_ylabel('x')
-    x = matrify(x, constants)
+    x, t_final = matrify(x, constants)
     for i in range(constants['Nv']):
-        curveplot, pointsplot = bern.plot(np.fliplr(x[:, :2, i]), constants['T'], ax=ax)
+        curveplot, pointsplot = bern.plot(np.fliplr(x[:, :2, i]), t_final, ax=ax)
         curveplot.set_label('Bernstein Polynomial for vehicle ' + str(i))
         t, xy = constants['recoverxy'](x[:, :, i], constants)
         recoveredplot, = ax.plot(xy[1, :], xy[0, :].T)
         recoveredplot.set_label('ODE solution for vehicle ' + str(i))
         ax.legend(loc='upper right', fontsize='x-small')
-        points = bern.eval(x[:, :, i], constants['T'], np.linspace(0, constants['T'], 10))
+        points = bern.eval(x[:, :, i], t_final, np.linspace(0, t_final, 10))
         for ti in range(10):
             ax.add_patch(plotboat(points[ti, 1], points[ti, 0], np.pi/2-points[ti, 2], 0.5))
     for obs in constants['obstacles']:

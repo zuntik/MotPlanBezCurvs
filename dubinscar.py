@@ -8,7 +8,7 @@ def main():
 
     # first illustrative example
     constants = {
-        'T': 10,  # runtime
+        'T': 0,  # runtime
         'xi': np.array([[0, 0, 0, 1, 0]]),  # initial states
         'xf': np.array([[5, 5, np.pi / 2, 1, 0]]),  # final states
         'statebounds': np.array([[-10000, -20000, -30000, -40000, -50000], [10000, 20000, 30000, 40000, 50000]]),
@@ -59,15 +59,15 @@ def main():
         'recoverxy': recoverplot,
     }}
 
-    res, elapsedtime, singtimes = run_problem(constants)
-    print('The final cost is ' + str(res.fun))
-    plot_xy(res, constants)
+    x_out, t_final, cost_final, elapsedtime, singtimes = run_problem(constants)
+    print('The final cost is ' + str(cost_final))
+    plot_xy(x_out, t_final, constants)
 
 
 ################################################################################
 # functions
 ################################################################################
-def recoverplot(x, constants):
+def recoverplot(x, _, constants):
     def odefunc(t, val, v, w):
         _, y, psi = val
         dx = v(t) * np.cos(psi)
@@ -84,7 +84,7 @@ def recoverplot(x, constants):
     return np.linspace(0, constants['T'], 1000), sol.sol(np.linspace(0, constants['T'], 1000))
 
 
-def dynamics5vars(x, constants):
+def dynamics5vars(x, _, constants):
     """the vehicle dynamics"""
     diffmat = constants['DiffMat']
     xp, yp, psi, v, w = (x[:, i] for i in range(5))
@@ -96,7 +96,7 @@ def dynamics5vars(x, constants):
     )).flatten()
 
 
-def costfun_single(x, constants):
+def costfun_single(x, _, constants):
     """the running cost for a singular vehicle"""
     v = x[:, 3]
     w = x[:, 4]
