@@ -108,7 +108,7 @@ def tomon(p, t):
     return tomonmat(p.shape[0] - 1, t) @ p
 
 
-def plot(p, t, ax=None):
+def plot(p, t, plotcpts=False, ax=None):
     """Plots the polynomial"""
     n, dim = p.shape
     times = np.linspace(0, t, 100)
@@ -124,11 +124,12 @@ def plot(p, t, ax=None):
         raise ValueError('Unsupported dim')
     if dim == 1:
         curveplot, = ax.plot(times, vals)
-        pointsplot = ax.scatter(np.linspace(0, t, n), p)
+        if plotcpts:
+            pointsplot = ax.scatter(np.linspace(0, t, n), p)
     elif dim == 2:
         curveplot, = ax.plot(vals[:, 0], vals[:, 1])
-        pointsplot = ax.scatter(p[:, 0], p[:, 1])
+        if plotcpts:
+            pointsplot = ax.scatter(p[:, 0], p[:, 1])
     elif dim == 3:
         ax.plot(vals[:, 0], vals[:, 1], vals[:, 2])
     return curveplot, pointsplot
-
