@@ -1,9 +1,9 @@
 from scipy.optimize import minimize
-from bernsteinlib import *
+import bernsteinlib as bern
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
-from trajecoptim import plotboat
+from trajecoptim import plot_boat
 
 
 def main():
@@ -29,24 +29,24 @@ def main():
     ax.axis('equal')
     _, ax = plt.subplots()
     ax.axis('equal')
-    bernsteinPlot(np.fliplr(xout[:, :2]), constants['T'], ax)
-    points = bernsteinEval(xout, constants['T'], np.linspace(0, constants['T'], 10))
+    bern.plot(np.fliplr(xout[:, :2]), constants['T'], ax)
+    points = bern.eval(xout, constants['T'], np.linspace(0, constants['T'], 10))
     for ti in range(10):
-        ax.add_patch(plotboat(points[ti, 1], points[ti, 0], np.pi / 2 - points[ti, 2], 3))
+        ax.add_patch(plot_boat(points[ti, 1], points[ti, 0], np.pi / 2 - points[ti, 2], 3))
     t, xy = recoverplot(xout, constants)
     _, ax = plt.subplots()
     ax.axis('equal')
     ax.plot(xy[1, :], xy[0, :].T)
     _, ax = plt.subplots()
     _, v, _, _, _ = calcothers(xout, constants)
-    bernsteinPlot(v.reshape((-1, 1)), constants['T'], ax)
+    bern.plot(v.reshape((-1, 1)), constants['T'], ax)
 
     _, ax = plt.subplots()
-    yaw = lambda tt: bernsteinEval(xout[:, 2].reshape((-1, 1)), constants['T'], tt)
-    dx = bernsteinDeriv(xout[:, 0].reshape((-1, 1)), constants['T'])
-    dy = bernsteinDeriv(xout[:, 0].reshape((-1, 1)), constants['T'])
-    speedangle = lambda tt: np.arctan2(bernsteinEval(dy, constants['T'], tt), bernsteinEval(dx, constants['T'], tt))
-    sideslip = lambda tt: yaw(tt) - speedangle(tt)
+    def yaw(tt): return bern.eval(xout[:, 2].reshape((-1, 1)), constants['T'], tt)
+    dx = bern.deriv(xout[:, 0].reshape((-1, 1)), constants['T'])
+    dy = bern.deriv(xout[:, 0].reshape((-1, 1)), constants['T'])
+    def speedangle(tt): return np.arctan2(bern.eval(dy, constants['T'], tt), bern.eval(dx, constants['T'], tt))
+    def sideslip(tt): return yaw(tt) - speedangle(tt)
     ax.plot(np.linspace(0, constants['T'], 100), sideslip(np.linspace(0, constants['T'], 100)))
 
     plt.show()
@@ -130,17 +130,17 @@ def setconstants():
         'N': 70,
     }
 
-    constants = {**constants, **{
+    constants |= {
         # common parameters
         'modelparams': modelparams,
-    }}
+    }
 
-    constants = {**constants, **{
+    constants |= {
         # common parameters
-        'DiffMat': bernsteinDerivElevMat(constants['N'], constants['T']),
-        'ElevMat': bernsteinDegrElevMat(constants['N'], constants['N'] * 10),
-        'EvalMat': bernsteinEvalMat(constants['N'], constants['T'], np.linspace(0, constants['T'], 1000)),
-    }}
+        'DiffMat': bern.derivelevmat(constants['N'], constants['T']),
+        'ElevMat': bern.degrelevmat(constants['N'], constants['N'] * 10),
+        'EvalMat': bern.evalmat(constants['N'], constants['T'], np.linspace(0, constants['T'], 1000)),
+    }
 
     return constants
 
@@ -239,9 +239,9 @@ def recoverplot(x, constants):
     u_cp, v_cp, r_cp, tau_u_cp, tau_r_cp = calcothers(x, constants)
 
     xi = np.concatenate((x[0, :].flatten(), np.array([u_cp[0], v_cp[0], r_cp[0]])))
-    def tau_u(t): return bernsteinEval(tau_u_cp, constants['T'], t)
+    def tau_u(t): return bern.eval(tau_u_cp, constants['T'], t)
 
-    def tau_r(t): return bernsteinEval(tau_r_cp, constants['T'], t)
+    def tau_r(t): return bern.eval(tau_r_cp, constants['T'], t)
 
     odeargs = (tau_u, tau_r, constants['modelparams'])
     sol = solve_ivp(odefunc, [0, constants['T']], xi, args=odeargs, dense_output=True, vectorized=True)

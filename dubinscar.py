@@ -1,4 +1,4 @@
-from trajecoptim import run_problem, plot_xy
+from trajecoptim import run_problem, plot_xy, planner
 from scipy.integrate import solve_ivp
 import bernsteinlib as bern
 import numpy as np
@@ -7,107 +7,121 @@ import numpy as np
 def main():
 
     # first illustrative example
-    constants = {
-        'T': 0,  # runtime
+    problem = {
+        'T': 10,  # runtime
         'xi': np.array([[0, 0, 0, 1, 0]]),  # initial states
         'xf': np.array([[5, 5, np.pi / 2, 1, 0]]),  # final states
-        'statebounds': np.array([[-10000, -20000, -30000, -40000, -50000], [10000, 20000, 30000, 40000, 50000]]),
-        'N': 50,  # order of the polynomials
+        'N': 20,  # order of the polynomials
         'obstacles_circles': [[5, 0, 3]],  # n lines for n circles where columns are position x, position y, radius
+        'state_bounds': [None, None, None, (-1, 1), (-5, 5)]
     }
 
-    #    constants = {
+    #    problem = {
     #        'N': 30,
     #        'T': 15,
-    #        'xi': np.array([[0, 5, 0, 1, 0], [5, 0, np.pi / 2, 1, 0]]),
-    #        'xf': np.array([[10, 5, 0, 1, 0], [5, 10, np.pi / 2, 1, 0]]),
-    #        'statebounds': None,
-    #        'inputboudns': None,
-    #        'obstacles_circles': [],
-    #        'obstacles_polygons': [],
-    #        'min_dist_int_veh': 3,
-    #        'min_dist_obs': 0,
+    #        'xi': np.array([
+    #            [0, 5, 0, 1, 0],
+    #            [5, 0, np.pi / 2, 1, 0]
+    #        ]),
+    #        'xf': np.array([
+    #            [10, 5, 0, 1, 0],
+    #            [5, 10, np.pi / 2, 1, 0]
+    #        ]),
+    #        'min_dist_int_veh': 2,
     #    }
 
-    #    constants = {
-    #        'N': 40,
-    #        'T': 15,
+    #    problem = {
+    #        'N': 20,
+    #        'T': 20,
     #        'xi': np.array([
     #            [-10, 4, 0, 1, 0],
     #            [-10, -4, 0, 1, 0],
     #            [-10, 0, 0, 1, 0],
+    #            [0, -10, 0, 1, 0],
     #        ]),
     #        'xf': np.array([
-    #            [10, -1, 0, 1, 0],
-    #            [10, 1, 0, 1, 0],
+    #            [10, -3, 0, 1, 0],
+    #            [10, 3, 0, 1, 0],
     #            [10, 0, 0, 1, 0],
+    #            [0, 10, 0, 1, 0],
     #        ]),
     #        'obstacles_circles': [[0, 0, 3]],
-    #        'obstacles_polygons': [],
-    #        'min_dist_obs': 0,
-    #        'min_dist_int_veh': 0.9,
-    #        'statebounds': None,  # np.array([[-20, -20, -10, -10, -10], [20, 20, 10, 10, 10]]),
-    #        'inputbounds': None,
+    #        'min_dist_int_veh': 1,
+    #        'state_bounds': [None, None, None, (-.2, 2), (-2, 2)],
     #    }
 
-    constants = {** constants, **{
-        'uselogbar': False,
-        'usesigma': True,
+    problem |= {
         # functions
-        'costfun_single': costfun_single,
+        'cost_fun_single': cost_fun_single,
         'dynamics': dynamics5vars,
-        'recoverxy': recoverplot,
-    }}
+        'recover_xy': recover_xy,
+    }
 
-    x_out, t_final, cost_final, elapsedtime, singtimes = run_problem(constants)
-    print('The final cost is ' + str(cost_final))
-    plot_xy(x_out, t_final, constants)
+    x_out, t_final, cost_final, elapsed_time = run_problem(problem)
+    print('The final cost is ' + str(cost_final) + ' and the computation time was ' + str(elapsed_time))
+    plot_xy(x_out, t_final, problem)
+
+    # print('Now do the same thing but with the planner function...')
+    # x_out_planners, t_final_planner = planner(**problem)
+    # vehicle1_plot = x_out_planners[0](np.linspace(0, t_final_planner, 1000))
+    # import matplotlib.pyplot as plt
+    # plt.plot(vehicle1_plot[:, 1], vehicle1_plot[:, 0])  # axis are flipped
+    # plt.show()
 
 
 ################################################################################
 # functions
 ################################################################################
-def recoverplot(x, _, constants):
-    def odefunc(t, val, v, w):
-        _, y, psi = val
+def recover_xy(x, t_final, _):
+    def ode_func(t, val, v, w):
+        _, _, psi = val
         dx = v(t) * np.cos(psi)
         dy = v(t) * np.sin(psi)
         dpsi = w(t)
         return np.array([dx, dy, dpsi])
 
-    def pol_v(t): return bern.eval(x[:, 3], constants['T'], t)
+    def pol_v(t): return bern.eval(x[:, 3], t_final, t)
 
-    def pol_w(t): return bern.eval(x[:, 4], constants['T'], t)
+    def pol_w(t): return bern.eval(x[:, 4], t_final, t)
 
-    sol = solve_ivp(odefunc, [0, constants['T']], x[0, :3], args=(pol_v, pol_w), dense_output=True, vectorized=True)
+    sol = solve_ivp(ode_func, [0, t_final], x[0, :3], args=(pol_v, pol_w), dense_output=True, vectorized=True)
 
-    return np.linspace(0, constants['T'], 1000), sol.sol(np.linspace(0, constants['T'], 1000))
+    return np.linspace(0, t_final, 1000), sol.sol(np.linspace(0, t_final, 1000))
 
 
-def dynamics5vars(x, _, constants):
+def dynamics5vars(x, t_final, problem):
     """the vehicle dynamics"""
-    diffmat = constants['DiffMat']
-    xp, yp, psi, v, w = (x[:, i] for i in range(5))
-
+    diff_mat = problem['DiffMat'] / t_final
+    xp, yp, psi, v, w = x.T
     return np.vstack((
-        diffmat @ xp - v * np.cos(psi),
-        diffmat @ yp - v * np.sin(psi),
-        diffmat @ psi - w,
+        diff_mat @ xp - v * np.cos(psi),
+        diff_mat @ yp - v * np.sin(psi),
+        diff_mat @ psi - w,
     )).flatten()
 
 
-def costfun_single(x, _, constants):
+def cost_fun_single(x, t_final, problem):
     """the running cost for a singular vehicle"""
+    if problem['T'] == 0:
+        return t_final 
     v = x[:, 3]
     w = x[:, 4]
-    a = constants['DiffMat'] @ v
-    # return np.sum((constants['ElevMat']@a)**2)+2*np.sum((constants['ElevMat']@w)**2)
+    a = (problem['DiffMat'] / t_final) @ v
+    # return np.sum((problem['elev_mat']@a)**2)+2*np.sum((problem['ElevMat']@w)**2)
     return np.sum(a ** 2) + 2 * np.sum(w ** 2)
 
 
-################################################################################
-# run
-################################################################################
+def dubinscar_planner(xi, xf, **problem):
+
+    problem |= {
+        # functions
+        'cost_fun_single': cost_fun_single,
+        'dynamics': dynamics5vars,
+        'recover_xy': recover_xy,
+    }
+
+    return planner(xi, xf, **problem)
+
 
 if __name__ == "__main__":
     main()

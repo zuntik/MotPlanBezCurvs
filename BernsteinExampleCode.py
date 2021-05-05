@@ -15,7 +15,7 @@ ax.set_ylabel('b(t)')
 ax.axis('equal')
 plt.figtext(0.8, 0.8, "the first example")
 
-curveplot, ctrlpoints = bern.plot(p, T, ax=ax)
+curveplot, ctrlpoints = bern.plot(p, T, plotcpts=True, ax=ax)
 
 curveplot.set_label('a')
 ctrlpoints.set_label('b')

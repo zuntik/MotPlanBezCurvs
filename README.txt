@@ -1,2 +1,2 @@
-para testar basta correr um dos ficheiros "medusa.py" ou "dubincar.py"
-
+requires python 3.9
+run either "dubinscar.py" or "medusa.py"

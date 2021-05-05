@@ -1,14 +1,14 @@
-from trajecoptim import run_problem, plot_xy
+from trajecoptim import run_problem, plot_xy, planner
 from scipy.integrate import solve_ivp
 import bernsteinlib as bern
 import numpy as np
-from predefined_trajectories import circle_trajectory
+# from predefined_trajectories import circle_trajectory
 
 
 def main():
 
     # Coefficients
-    modelparams = {
+    model_parameters = {
         'mass': 17.0,
         'i_z': 1,
         'x_dot_u': -20,
@@ -29,36 +29,30 @@ def main():
         'vcy': 0,
     }
 
-    modelparams = {**modelparams, **{
+    model_parameters |= {
         # masses
-        'm_u': modelparams['mass'] - modelparams['x_dot_u'],
-        'm_v': modelparams['mass'] - modelparams['y_dot_v'],
-        'm_r': modelparams['i_z'] - modelparams['n_dot_r'],
-        'm_uv': modelparams['y_dot_v'] - modelparams['x_dot_u'],
-    }}
+        'm_u': model_parameters['mass'] - model_parameters['x_dot_u'],
+        'm_v': model_parameters['mass'] - model_parameters['y_dot_v'],
+        'm_r': model_parameters['i_z'] - model_parameters['n_dot_r'],
+        'm_uv': model_parameters['y_dot_v'] - model_parameters['x_dot_u'],
+    }
 
-    constants = {
-        'T': 15,
+    problem = {
+        'T': 60,
         'xi': np.array([
             [0, 0, 0, 1, 0, 0],
             # [r*np.cos(0), r*np.sin(0), 0, 2*r*np.pi/150, 0, 0],
         ]),
         'xf': np.array([
-            [0, 6, np.pi, 1, 0, 0],
+            [30, 30, np.pi/2, 1, 0, 0],
             # [r*np.cos(0), r*np.sin(0), 0, 2*r*np.pi/150, 0, 0],
         ]),
-        'statebounds': np.array([
-            [-10000, -20000, -30000, -.1, -1000, -.74],
-            [10000, 20000, 30000, 1.1, 1000, .74],
-        ]),
-        'inputbounds': np.array([
-            [0, -0.113],
-            [25.9, 0.113],
-        ]),
+        'state_bounds': [None, None, None, (-.1, 1.1), None, (-.74, .74)],
+        'input_bounds': [(0, 25.9), (-.113, .113)],
         'N': 50,
     }
 
-    #    constants = {
+    #    problem = {
     #        'T': 15,
     #        'xi': np.array([
     #            [-10, 4, 0, 1, 0, 0],
@@ -74,7 +68,7 @@ def main():
     #            [-10000, -20000, -30000, -40000, -50000, -6000],
     #            [10000, 20000, 30000, 40000, 50000, 6000],
     #        ]),
-    #        'inputbounds': np.array([[]]),
+    #        'input_bounds': np.array([[]]),
     #        'N': 40,
     #        # 'obstacles_circles': [[0, 0, 5]],
     #        'obstacles_circles': [],
@@ -83,31 +77,31 @@ def main():
     #        'min_dist_obs': 0,
     #    }
 
-    constants = {**constants, **{
+    problem |= {
         # common parameters
-        'modelparams': modelparams,
-        'numinputs': 2,
+        'model_parameters': model_parameters,
+        'num_inputs': 2,
         # functions
-        'costfun_single': costfun_single,
+        'cost_fun_single': cost_fun_single,
         'dynamics': dynamics,
-        'recoverxy': recoverplot,
-    }}
+        'recover_xy': recover_xy,
+    }
 
-    #    constants = {**constants, **{
-    #        # 'desiredpoints': circle_trajectory(np.linspace(0, constants['T'], constants['N']*40), constants['T'], r)
-    #        'desiredpoints': circle_trajectory(np.linspace(0, constants['T'], 1000), constants['T'], r)
-    #    }}
+    #    problem |= {
+    #        # 'desiredpoints': circle_trajectory(np.linspace(0, problem['T'], problem['N']*40), problem['T'], r)
+    #        'desiredpoints': circle_trajectory(np.linspace(0, problem['T'], 1000), problem['T'], r)
+    #    }
 
-    res, elapsedtime, singtimes = run_problem(constants)
-    print('The final cost is ' + str(res.fun))
-    plot_xy(res, constants)
+    x_out, t_final, cost_final, elapsed_time = run_problem(problem)
+    print('The final cost is ' + str(cost_final) + ' and the computation time was ' + str(elapsed_time))
+    plot_xy(x_out, t_final, problem)
 
 
 ################################################################################
 # functions
 ################################################################################
-def recoverplot(x, constants):
-    def odefunc(t, val, t_u, t_r, params):
+def recover_xy(x, t_final, problem):
+    def ode_func(t, val, t_u, t_r, params):
         #  coefficients
         x_u = params['x_u']
         y_v = params['y_v']
@@ -122,7 +116,7 @@ def recoverplot(x, constants):
         m_r = params['m_r']
         m_uv = params['m_uv']
 
-        #  constants
+        #  problem
         fu = params['fu']
         fv = params['fv']
         fr = params['fr']
@@ -145,20 +139,20 @@ def recoverplot(x, constants):
 
         return np.array([dx, dy, dyaw, du, dv, dr])
 
-    def tau_u(t): return bern.eval(x[:, 6], constants['T'], t)
+    def tau_u(t): return bern.eval(x[:, 6], t_final, t)
 
-    def tau_r(t): return bern.eval(x[:, 7], constants['T'], t)
+    def tau_r(t): return bern.eval(x[:, 7], t_final, t)
 
-    odeargs = (tau_u, tau_r, constants['modelparams'])
-    sol = solve_ivp(odefunc, [0, constants['T']], x[0, :6], args=odeargs, dense_output=True, vectorized=True)
+    odeargs = (tau_u, tau_r, problem['model_parameters'])
+    sol = solve_ivp(ode_func, [0, problem['T']], x[0, :6], args=odeargs, dense_output=True, vectorized=True)
 
-    return np.linspace(0, constants['T'], 1000), sol.sol(np.linspace(0, constants['T'], 1000))
+    return np.linspace(0, t_final, 1000), sol.sol(np.linspace(0, t_final, 1000))
 
 
-def dynamics(x, constants):
-    diffmat = constants['DiffMat']
+def dynamics(x, t_final, problem):
+    diff_mat = problem['DiffMat'] / t_final
 
-    params = constants['modelparams']
+    params = problem['model_parameters']
     #  coefficients
     x_u = params['x_u']
     y_v = params['y_v']
@@ -173,7 +167,7 @@ def dynamics(x, constants):
     m_r = params['m_r']
     m_uv = params['m_uv']
 
-    #  constants
+    #  problem
     fu = params['fu']
     fv = params['fv']
     fr = params['fr']
@@ -181,15 +175,9 @@ def dynamics(x, constants):
     vcy = params['vcy']
 
     # states
-    xp = x[:, 0]
-    yp = x[:, 1]
-    yaw = x[:, 2]
-    u = x[:, 3]
-    v = x[:, 4]
-    r = x[:, 5]
+    xp, yp, yaw, u, v, r = x[:, 0:6].T
     # inputs
-    tau_u = x[:, 6]
-    tau_r = x[:, 7]
+    tau_u, tau_r = x[:, 6:8].T
 
     # drag
     d_u = -x_u - x_uu * np.abs(u)
@@ -197,23 +185,35 @@ def dynamics(x, constants):
     d_r = -n_r - n_rr * np.abs(r)
 
     return np.vstack((
-        diffmat @ xp - u * np.cos(yaw) + v * np.sin(yaw) + vcx,
-        diffmat @ yp - u * np.sin(yaw) - v * np.cos(yaw) + vcy,
-        diffmat @ yaw - r,
-        diffmat @ u - 1 / m_u * (tau_u + m_v * v * r - d_u * u + fu),
-        diffmat @ v - 1 / m_v * (-m_u * u * r - d_v * v + fv),
-        diffmat @ r - 1 / m_r * (tau_r + m_uv * u * v - d_r * r + fr),
+        diff_mat @ xp - u * np.cos(yaw) + v * np.sin(yaw) + vcx,
+        diff_mat @ yp - u * np.sin(yaw) - v * np.cos(yaw) + vcy,
+        diff_mat @ yaw - r,
+        diff_mat @ u - 1 / m_u * (tau_u + m_v * v * r - d_u * u + fu),
+        diff_mat @ v - 1 / m_v * (-m_u * u * r - d_v * v + fv),
+        diff_mat @ r - 1 / m_r * (tau_r + m_uv * u * v - d_r * r + fr),
     )).flatten()
 
 
-def costfun_single(x, *_):
-    return np.sum(x[:, 6] ** 2) + np.sum(x[:, 7] ** 2)
-    # return np.sum((constants['desiredpoints'] - (constants['EvalMat']@x)[:, :2])**2)
+def cost_fun_single(x, *_):
+    return np.sum(x[:, 3]**2)
+    # return np.sum(x[:, 6] ** 2) + np.sum(x[:, 7] ** 2)
+    # return np.sum((problem['desiredpoints'] - (problem['EvalMat']@x)[:, :2])**2)
+
+
+def medusa_planner(xi, xf, **problem):
+
+    problem |= {
+        # functions
+        'cost_fun_single': cost_fun_single,
+        'dynamics': dynamics,
+        'recover_xy': recover_xy,
+    }
+
+    return planner(xi, xf, **problem)
 
 
 ################################################################################
 # run
 ################################################################################
-
 if __name__ == "__main__":
     main()
