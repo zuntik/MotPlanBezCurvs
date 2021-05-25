@@ -49,13 +49,13 @@ def main():
     #        'min_dist_int_veh': 1,
     #    }
 
-    problem |= {
+    problem = {**problem, **{
         # functions
         'cost_fun_single': cost_fun_single,
         'dynamics': dynamics4vars,
         # 'recover_xy': recover_xy,
         # 'init_guess': init_guess,
-    }
+    }}
 
     x_out, t_final, cost_final, elapsed_time = run_problem(problem)
     print('The final cost is ' + str(cost_final) + ' and the computation time was ' + str(elapsed_time))
@@ -99,12 +99,12 @@ def cost_fun_single(_, t_final, __):
 
 def dubinscar_no_v_planner(xi, xf, **problem):
 
-    problem |= {
+    problem = {**problem, **{
         # functions
         'cost_fun_single': cost_fun_single,
         'dynamics': dynamics4vars,
         'recover_xy': recover_xy,
-    }
+    }}
 
     return planner(xi, xf, **problem)
 

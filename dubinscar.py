@@ -50,12 +50,12 @@ def main():
     #        'state_bounds': [None, None, None, (-.2, 2), (-2, 2)],
     #    }
 
-    problem |= {
+    problem = {**problem, **{
         # functions
         'cost_fun_single': cost_fun_single,
         'dynamics': dynamics5vars,
         'recover_xy': recover_xy,
-    }
+    }}
 
     x_out, t_final, cost_final, elapsed_time = run_problem(problem)
     print('The final cost is ' + str(cost_final) + ' and the computation time was ' + str(elapsed_time))
@@ -113,12 +113,12 @@ def cost_fun_single(x, t_final, problem):
 
 def dubinscar_planner(xi, xf, **problem):
 
-    problem |= {
+    problem = {**problem, **{
         # functions
         'cost_fun_single': cost_fun_single,
         'dynamics': dynamics5vars,
         'recover_xy': recover_xy,
-    }
+    }}
 
     return planner(xi, xf, **problem)
 

@@ -29,13 +29,13 @@ def main():
         'vcy': 0,
     }
 
-    model_parameters |= {
+    model_parameters = {**model_parameters, **{
         # masses
         'm_u': model_parameters['mass'] - model_parameters['x_dot_u'],
         'm_v': model_parameters['mass'] - model_parameters['y_dot_v'],
         'm_r': model_parameters['i_z'] - model_parameters['n_dot_r'],
         'm_uv': model_parameters['y_dot_v'] - model_parameters['x_dot_u'],
-    }
+    }}
 
     problem = {
         'T': 60,
@@ -77,7 +77,7 @@ def main():
     #        'min_dist_obs': 0,
     #    }
 
-    problem |= {
+    problem = {**problem, **{
         # common parameters
         'model_parameters': model_parameters,
         'num_inputs': 2,
@@ -85,12 +85,12 @@ def main():
         'cost_fun_single': cost_fun_single,
         'dynamics': dynamics,
         'recover_xy': recover_xy,
-    }
+    }}
 
-    #    problem |= {
+    #    problem = {**problem, {
     #        # 'desiredpoints': circle_trajectory(np.linspace(0, problem['T'], problem['N']*40), problem['T'], r)
     #        'desiredpoints': circle_trajectory(np.linspace(0, problem['T'], 1000), problem['T'], r)
-    #    }
+    #    }}
 
     x_out, t_final, cost_final, elapsed_time = run_problem(problem)
     print('The final cost is ' + str(cost_final) + ' and the computation time was ' + str(elapsed_time))
@@ -202,12 +202,12 @@ def cost_fun_single(x, *_):
 
 def medusa_planner(xi, xf, **problem):
 
-    problem |= {
+    problem = {**problem, **{
         # functions
         'cost_fun_single': cost_fun_single,
         'dynamics': dynamics,
         'recover_xy': recover_xy,
-    }
+    }}
 
     return planner(xi, xf, **problem)
 

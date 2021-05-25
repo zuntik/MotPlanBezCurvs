@@ -209,7 +209,7 @@ def process_problem(problem_orig):
     problem.setdefault('use_sigma', True)
     problem.setdefault('T', 0)
     problem.setdefault('N', 20)
-    problem |= {
+    problem = {**problem, **{
         # common parameters
         # 'DiffMat': bern.derivelevmat(problem['N'], problem['T'] if problem['T'] != 0 else 1),
         'DiffMat': bern.derivelevmat(problem['N'], 1),
@@ -219,18 +219,18 @@ def process_problem(problem_orig):
                                 np.linspace(0, problem['T'] if problem['T'] != 0 else 1, 1000)),
         'num_states': problem['xi'].shape[1],
         'Nv': problem['xi'].shape[0],
-    }
+    }}
     problem.setdefault('obstacles_circles', [])
     problem.setdefault('obstacles_polygons', [])
     problem.setdefault('min_dist_obs', 0)
     problem.setdefault('min_dist_int_veh', 2)
     # noinspection PyTypeChecker
-    problem |= {
+    problem = {**problem, **{
         'obstacles':
             [TOLCircle(c[:-1], c[-1], problem['elev_mat'], problem['min_dist_obs'])
              for c in problem['obstacles_circles']] +
             [TOLPolygon(m) for m in problem['obstacles_polygons']]
-    }
+    }}
     problem.setdefault('plot_control_points', False)
     problem.setdefault('recover_xy', None)
     problem.setdefault('boat_size', np.linalg.norm(problem['xi'][:2, 0]-problem['xf'][:2, 0])/13)
@@ -350,7 +350,7 @@ def planner(xi, xf, **keyword_args):
         'xf': xf,  # final states
     }
 
-    problem |= keyword_args
+    problem = {**problem, **keyword_args}
 
     x_out, t_final = run_problem(problem)[:2]
 
