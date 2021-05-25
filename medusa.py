@@ -2,7 +2,6 @@ from trajecoptim import run_problem, plot_xy, planner
 from scipy.integrate import solve_ivp
 import bernsteinlib as bern
 import numpy as np
-# from predefined_trajectories import circle_trajectory
 
 
 def main():
@@ -86,11 +85,6 @@ def main():
         'dynamics': dynamics,
         'recover_xy': recover_xy,
     }}
-
-    #    problem = {**problem, {
-    #        # 'desiredpoints': circle_trajectory(np.linspace(0, problem['T'], problem['N']*40), problem['T'], r)
-    #        'desiredpoints': circle_trajectory(np.linspace(0, problem['T'], 1000), problem['T'], r)
-    #    }}
 
     x_out, t_final, cost_final, elapsed_time = run_problem(problem)
     print('The final cost is ' + str(cost_final) + ' and the computation time was ' + str(elapsed_time))
@@ -194,10 +188,10 @@ def dynamics(x, t_final, problem):
     )).flatten()
 
 
-def cost_fun_single(x, *_):
+def cost_fun_single(x, t_final, problem):
+    if problem['T'] == 0:
+        return t_final
     return np.sum(x[:, 3]**2)
-    # return np.sum(x[:, 6] ** 2) + np.sum(x[:, 7] ** 2)
-    # return np.sum((problem['desiredpoints'] - (problem['EvalMat']@x)[:, :2])**2)
 
 
 def medusa_planner(xi, xf, **problem):
