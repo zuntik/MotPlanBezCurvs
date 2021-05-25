@@ -15,13 +15,6 @@ def logbarrierfunc(delta, z, use_sigma):
                     ((k - 1) / k) * (((z - k * delta) / ((k - 1) * delta)) ** k - 1) - np.log(delta))
 
 
-def matrify_simpler(x, problem):
-    """Transforms a flattened vector of control points to a matrix"""
-    return x[:-1 if problem['T'] == 0 else None].\
-        reshape((problem['N']+1, problem['num_states']+problem['num_inputs'], problem['Nv'])),\
-        x[-1] if problem['T'] == 0 else problem['T']
-
-
 def matrify(x, problem):
     """Transforms a flattened vector of control points to a matrix"""
     t_final = x[-1] if problem['T'] == 0 else problem['T']
@@ -36,9 +29,8 @@ def matrify(x, problem):
                 problem['xf'][i, :].reshape((1, -1))
             ), axis=0),
             x[i, (problem['N'] - 1) * problem['num_states']:].reshape((problem['N'] + 1, problem['num_inputs']))
-        ), axis=1)[:, :, np.newaxis]  # .reshape((problem['N']+1, problem['num_states']+problem['num_inputs'], 1))
+        ), axis=1)[:, :, np.newaxis]
         for i in range(problem['Nv'])]
-    # return np.reshape(x, (problem['N'] - 1, problem['num_states'], problem['Nv']))
     return np.concatenate(x_mat, axis=2), t_final
 
 
@@ -65,87 +57,20 @@ def eqconstr(x, problem):
     """Deals with the equality constraints"""
     x, t_final = matrify(x, problem)
     return np.concatenate([problem['dynamics'](x[:, :, i], t_final, problem) for i in range(problem['Nv'])])
-    #    # initial and final conditions
-    #    constraints = [
-    #        (problem['xi'] - x[0, :, :].T).flatten(),
-    #        (problem['xf'] - x[-1, :, :].T).flatten()
-    #    ]
-    #    # dynamics
-    #    constraints += [problem['dynamics'](x[:, :, i], problem) for i in range(problem['Nv'])]
-    #    return np.concatenate(constraints)
-
-
-def variable_bounds_simpler(problem):
-    all_bounds = \
-        (problem['state_bounds'] if problem['state_bounds'] is not None else
-            [(-np.inf, np.inf)]*problem['num_states']) + \
-        (problem['state_bounds'] if problem['state_bounds'] is not None else
-            [(-np.inf, np.inf)] * problem['num_inputs'])
-    bounds = []
-    for i in range(problem['N']+1):
-        for j in range(problem['num_states']+problem['num_inputs']):
-            for k in range(problem['Nv']):
-                bounds.append(all_bounds[j] if all_bounds[j] is not None else (-np.inf, np.inf))
-    bounds += ([(.01, np.inf)] if problem['T'] == 0 else [])
-    return np.array(bounds)[:, 0], np.array(bounds)[:, 1]
-
-
-def variable_bounds_more_or_less(problem):
-
-    state_bounds = np.array([b if b is not None else (-np.inf, np.inf) for b in problem['state_bounds']]) if\
-        problem['state_bounds'] is not None else np.array([(-np.inf, np.inf)] * problem['num_states'])
-    input_bounds = np.array([b if b is not None else (-np.inf, np.inf) for b in problem['input_bounds']]) if\
-        problem['input_bounds'] is not None else np.array([(-np.inf, np.inf)] * problem['num_inputs'])
-
-    bounds = np.concatenate((state_bounds, input_bounds.reshape((-1, 2))), axis=0)
-
-    lower_bounds = np.repeat(bounds[:, 0].reshape((1, -1)), problem['N']+1, axis=0)
-    upper_bounds = np.repeat(bounds[:, 1].reshape((1, -1)), problem['N']+1, axis=0)
-
-    lower_bounds = np.repeat(lower_bounds[:, :, np.newaxis], problem['Nv'], axis=2)
-    upper_bounds = np.repeat(upper_bounds[:, :, np.newaxis], problem['Nv'], axis=2)
-
-    #    lower_bounds[0, :problem['num_states'], :] = problem['xi'].T
-    #    lower_bounds[-1, :problem['num_states'], :] = problem['xf'].T
-    #    upper_bounds[0, :problem['num_states'], :] = problem['xi'].T
-    #    upper_bounds[-1, :problem['num_states'], :] = problem['xf'].T
-
-    lower_bounds = np.concatenate((lower_bounds.flatten(), ([0.01] if problem['T'] == 0 else [])))
-    upper_bounds = np.concatenate((upper_bounds.flatten(), ([np.inf] if problem['T'] == 0 else [])))
-
-    return lower_bounds, upper_bounds
-
-    # return [(lower_bounds[i], upper_bounds[i]) for i in range(len(lower_bounds))]\
-    # + ([(0, np.inf)] if problem['T'] == 0 else [])
-
-
-def first_and_last(x, problem):
-    x, _ = matrify(x, problem)
-    return np.concatenate((
-        (x[0, :problem['num_states'], :] - problem['xi'].T).flatten(),
-        (x[-1, :problem['num_states'], :] - problem['xf'].T).flatten(),
-    ))
 
 
 def variable_bounds(problem):
     """Creates a vector of lower and upper bounds"""
     return ([
-                # (problem['state_bounds'][0, var], problem['state_bounds'][1, var])
                 problem['state_bounds'][var] if problem['state_bounds'][var] is not None else (-np.inf, np.inf)
                 for _ in range(problem['N'] - 1)
                 for var in range(problem['num_states'])
             ] + [
-                # (problem['input_bounds'][1, inp], problem['input_bounds'][1, inp])
                 problem['input_bounds'][inp] if problem['input_bounds'][inp] is not None else (-np.inf, np.inf)
                 for _ in range(problem['N'] + 1)
                 for inp in range(problem['num_inputs'])
             ]) * problem['Nv'] + ([(0, np.inf)] if problem['T'] == 0 else []) \
         if problem['state_bounds'] is not None else None
-
-    # return [(problem['vehicle_bounds'][0, var], problem['vehicle_bounds'][1, var])
-    #         for _ in range(problem['N'] + 1)
-    #         for var in range(problem['num_states'])
-    #         for __ in range(problem['Nv'])] if problem['vehicle_bounds'] is not None else None
 
 
 def ineqconstr(x, problem):
@@ -186,8 +111,6 @@ def lin_init_guess(problem):
 def rand_init_guess(problem):
     """Calculates a random initial guess"""
     bnds = variable_bounds(problem)
-    # lower_bounds, upper_bounds = variable_bounds(problem)
-    # bnds = np.concatenate((lower_bounds.reshape((-1, 1)), upper_bounds.reshape((-1, 1))), axis=1)
     if bnds is None:
         _n = problem['N']
         return np.random.rand(((_n - 1) * problem['num_states'] + (_n+1) * problem['num_inputs']) * problem['Nv'])
@@ -195,7 +118,6 @@ def rand_init_guess(problem):
         bnds = np.array(bnds)
         bnds = np.where(bnds == np.inf, 1, bnds)
         bnds = np.where(bnds == -np.inf, -1, bnds)
-        # return np.array([np.random.uniform(bnds[i, 0], bnds[i, 1]) for i in range(bnds.shape[0])])
         return np.random.uniform(bnds[:, 0], bnds[:, 1])
 
 
@@ -211,10 +133,8 @@ def process_problem(problem_orig):
     problem.setdefault('N', 20)
     problem = {**problem, **{
         # common parameters
-        # 'DiffMat': bern.derivelevmat(problem['N'], problem['T'] if problem['T'] != 0 else 1),
         'DiffMat': bern.derivelevmat(problem['N'], 1),
         'elev_mat': bern.degrelevmat(problem['N'], problem['N'] * 10),
-        # 'EvalMat': bern.evalmat(problem['N'], problem['T'], np.linspace(0,problem['T'], problem['N']*40)),
         'EvalMat': bern.evalmat(problem['N'], problem['T'] if problem['T'] != 0 else 1,
                                 np.linspace(0, problem['T'] if problem['T'] != 0 else 1, 1000)),
         'num_states': problem['xi'].shape[1],
@@ -320,7 +240,6 @@ def run_problem(problem):
     problem = process_problem(problem)  # preserves the original problem dict
 
     xin = problem.get('init_guess', lin_init_guess)(problem)
-    # xin = np.concatenate((xin, np.array([1]))) if problem['T'] == 0 else xin
 
     opts = {'disp': True, 'maxiter': 1000}
 
@@ -329,10 +248,6 @@ def run_problem(problem):
     if not problem['use_log_bar']:
         constr += [{'type': 'ineq', 'fun': lambda x: ineqconstr(x, problem)}]
 
-    # constr += [{'type': 'eq', 'fun': lambda x: first_and_last(x, problem)}]
-
-    #    lower_bounds, upper_bounds = variable_bounds(problem)
-    #    bnds = Bounds(lower_bounds, upper_bounds) if not problem['use_log_bar'] else None
     bnds = variable_bounds(problem) if not problem['use_log_bar'] else None
 
     t = time()
@@ -354,9 +269,6 @@ def planner(xi, xf, **keyword_args):
 
     x_out, t_final = run_problem(problem)[:2]
 
-    # evaluators = [
-    #     [lambda t: bern.eval(x_out[:, j, i], t_final, t) for j in range(xi.shape[1])]
-    #     for i in range(xi.shape[0])]
     evaluators = [lambda t: bern.eval(x_out[:, :, i], t_final, t) for i in range(xi.shape[0])]
 
     return evaluators, t_final

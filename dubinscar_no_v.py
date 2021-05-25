@@ -11,7 +11,7 @@ def main():
         'xi': np.array([[0, 0, 0, 0]]),  # initial states
         'xf': np.array([[5, 5, np.pi/2, 0]]),  # final states
         'v': .5,
-        'N': 100,  # order of the polynomials
+        'N': 50,  # order of the polynomials
         # 'obstacles_circles': [[5, 0, 3]],  # n lines for n circles where columns are position x, position y, radius
         # 'state_bounds': [(-5, 10), (-5, 10), (-np.pi / 2, 2 * np.pi), (-5, 5)],
         'state_bounds': [(-5, 10), (-5, 10), (-np.pi / 2, 2 * np.pi), (-.5, .5)],
