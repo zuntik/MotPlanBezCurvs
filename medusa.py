@@ -1,6 +1,6 @@
-from trajecoptim import run_problem, plot_xy, planner
+from .trajecoptim import run_problem, plot_xy, planner
 from scipy.integrate import solve_ivp
-import bernsteinlib as bern
+from . import .bernsteinlib as bern
 import numpy as np
 
 

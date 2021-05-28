@@ -1,5 +1,5 @@
 from scipy.optimize import minimize  # , Bounds
-import bernsteinlib as bern
+from . import bernsteinlib as bern
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
