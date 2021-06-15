@@ -7,12 +7,13 @@ import numpy as np
 def main():
 
     # first illustrative example
+    offset = np.array([1234, 185943, 0, 0, 0])
     problem = {
         'T': 10,  # runtime
-        'xi': np.array([[0, 0, 0, 1, 0]]),  # initial states
-        'xf': np.array([[5, 5, np.pi / 2, 1, 0]]),  # final states
+        'xi': np.array([[0, 0, 0, 1, 0]])+ offset,  # initial states
+        'xf': np.array([[5, 5, np.pi / 2, 1, 0]])+offset,  # final states
         'N': 20,  # order of the polynomials
-        'obstacles_circles': [[5, 0, 3]],  # n lines for n circles where columns are position x, position y, radius
+        'obstacles_circles': [[5+offset[0], 0+offset[1], 3]],  # n lines for n circles where columns are position x, position y, radius
         'state_bounds': [None, None, None, (-1, 1), (-5, 5)]
     }
 
