@@ -23,7 +23,7 @@ def basis(k, n, tau):
 
 def degrelevmat(n, m):
     """Returns a matrix for degree elevation"""
-    return np.array([[comb(i, j) * comb(m - i, n - j) if max(0, i - m + n) <= j <= min(n, i) + 1 else 0
+    return np.array([[comb(i, j) * comb(m - i, n - j) if max(0, i - m + n) <= j <= min(n, i) else 0
                       for j in range(n + 1)] for i in range(m+1)]) / comb(m, n)
 
 

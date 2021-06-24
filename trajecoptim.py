@@ -69,7 +69,7 @@ def variable_bounds(problem):
                 problem['input_bounds'][inp] if problem['input_bounds'][inp] is not None else (-np.inf, np.inf)
                 for _ in range(problem['N'] + 1)
                 for inp in range(problem['num_inputs'])
-            ]) * problem['Nv'] + ([(0, np.inf)] if problem['T'] == 0 else []) \
+            ]) * problem['Nv'] + ([(0.01, np.inf)] if problem['T'] == 0 else []) \
         if problem['state_bounds'] is not None else None
 
 
@@ -241,7 +241,11 @@ def run_problem(problem):
 
     xin = problem.get('init_guess', lin_init_guess)(problem)
 
-    opts = {'disp': True, 'maxiter': 1000}
+    algorithm = {
+        'method': 'SLSQP',
+        'options': {'disp': True, 'ftol': 1e-02, 'maxiter': 1000}
+    }
+    algorithm = {'method':'trust-constr','options':None}
 
     constr = []
     constr += [{'type': 'eq', 'fun': lambda x: eqconstr(x, problem)}]
@@ -252,7 +256,7 @@ def run_problem(problem):
 
     t = time()
     # noinspection PyTypeChecker
-    res = minimize(cost_fun, xin, args=problem, method='SLSQP', bounds=bnds, constraints=constr, options=opts)
+    res = minimize(cost_fun, xin, args=problem, method=algorithm['method'], bounds=bnds, constraints=constr, options=algorithm['options'])
     elapsed_time = time() - t
     x_out, t_final = matrify(res.x, problem)
     return x_out, t_final, res.fun, elapsed_time
