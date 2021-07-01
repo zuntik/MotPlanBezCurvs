@@ -22,49 +22,6 @@ def main():
         'dim': 2
     }
 
-    #    problem = {
-    #        'T': 10,  # runtime
-    #        'xi': np.array([[0, 0, 0, 1, 0]])+ offset,  # initial states
-    #        'xf': np.array([[5, 5, np.pi / 2, 1, 0]])+offset,  # final states
-    #        'N': 20,  # order of the polynomials
-    #        'obstacles_circles': [[5+offset[0], 0+offset[1], 3]],  # n lines for n circles where columns are position x, position y, radius
-    #        'state_bounds': [None, None, None, (-1, 1), (-5, 5)]
-    #    }
-
-    #    problem = {
-    #        'N': 30,
-    #        'T': 15,
-    #        'xi': np.array([
-    #            [0, 5, 0, 1, 0],
-    #            [5, 0, np.pi / 2, 1, 0]
-    #        ]),
-    #        'xf': np.array([
-    #            [10, 5, 0, 1, 0],
-    #            [5, 10, np.pi / 2, 1, 0]
-    #        ]),
-    #        'min_dist_int_veh': 2,
-    #    }
-
-    #    problem = {
-    #        'N': 20,
-    #        'T': 20,
-    #        'xi': np.array([
-    #            [-10, 4, 0, 1, 0],
-    #            [-10, -4, 0, 1, 0],
-    #            [-10, 0, 0, 1, 0],
-    #            [0, -10, 0, 1, 0],
-    #        ]),
-    #        'xf': np.array([
-    #            [10, -3, 0, 1, 0],
-    #            [10, 3, 0, 1, 0],
-    #            [10, 0, 0, 1, 0],
-    #            [0, 10, 0, 1, 0],
-    #        ]),
-    #        'obstacles_circles': [[0, 0, 3]],
-    #        'min_dist_int_veh': 1,
-    #        'state_bounds': [None, None, None, (-.2, 2), (-2, 2)],
-    #    }
-
     problem = {**problem, **{
         # functions
         'cost_fun_single': cost_fun_single,
@@ -118,7 +75,7 @@ def dynamics5vars(x, t_final, problem):
 def cost_fun_single(x, t_final, problem):
     """the running cost for a singular vehicle"""
     if problem['T'] == 0:
-        return t_final 
+        return t_final
     v = x[:, 3]
     w = x[:, 4]
     a = (problem['DiffMat'] / t_final) @ v
@@ -192,13 +149,14 @@ def lineqconstr(problem):
             Aeq.append(A_line.reshape((1, -1)))
             beq.append(problem['xf'][i,0])
         # deal with initial and final headings
+        # find some perpendicular vectors
         if problem['dim'] == 2:
-            vec_i = np.array([tan(problem['xi'][i, 2],-1])
-            vec_f = np.array([tan(problem['xf'][i, 2],-1])
+            vec_i = np.array([[-np.sin(problem['xi'][i, 2]), np.cos(problem['xi'][i, 2])]])
+            vec_f = np.array([[-np.sin(problem['xf'][i, 2]), np.cos(problem['xf'][i, 2])]])
         elif problem['dim'] == 3:
-            alignedvec_i = np.array([np.cos(problem['azimuth']), np.sin(problem['azimuth']), np.sin(problem['elevation'])])
+            alignedvec_i = np.array([np.cos(problem['azimuth_i'])*np.cos(problem['elevation_i']), np.sin(problem['azimuth_i'])*np.cos(problem['elevation_i']), np.sin(problem['elevation_i'])])
             vec_i = np.cross(alignedvec_i, np.array([1,0,0])
-            alignedvec_f = np.array([np.cos(problem['azimuth']), np.sin(problem['azimuth']), np.sin(problem['elevation'])])
+            alignedvec_f = np.array([np.cos(problem['azimuth_f'])*np.cos(problem['elevation_f']), np.sin(problem['azimuth_f'])*np.cos(problem['elevation_f']), np.sin(problem['elevation_f'])])
             vec_f = np.cross(alignedvec_f, np.array([1,0,0])
             if np.linalg.norm(vec_i) == 0:
                 vec_r = np.cross(alignedvec_i, np.array([0, 1, 0]))
@@ -206,73 +164,80 @@ def lineqconstr(problem):
                 vec_f = np.cross(alignedvec_f, np.array([0, 1, 0]))
             vec_i = np.concatecante(vec_i.reshape((1,-1)), np.cross(alignedvec_i, np.array([0, 0, 1])).reshape((1, -1), axis=0)
             vec_f = np.concatecante(vec_f.reshape((1,-1)), np.cross(alignedvec_f, np.array([0, 0, 1])).reshape((1, -1), axis=0)
-        for j in range(vec.shape[0]):
-            A_line_i = np.zeros((problem['N']+1,problem['dim'],problem['Nv']))
+        # for each of the perpendicular vectors (which can be 2 or 1), define a line on the matrix
+        for j in range(vec_i.shape[0]):
+        n = m            A_line_i = np.zeros((problem['N']+1,problem['dim'],problem['Nv']))
             A_line_f = np.zeros((problem['N']+1,problem['dim'],problem['Nv']))
             for k in range(problem['dim']):
                 A_line_i[0, k, i] = -vec[j, k]
-                A_line_f[0, k, i] = -vec[j, k]
+                A_line_f[-1, k, i] = vec[j, k]
                 if np.linealg.norm(problem['xi'][i,:problem['dim']) == 0:
                     A_line[2, k, i] = vec[j, k]
                 else:
                     A_line[1, k, i] = vec[j, k]
-            if np.linealg.norm(problem['xf'][i,:problem['dim']) == 0:
-                A_line_i[2, k, i] = vec[j, k]
-            else:
-                A_line_f[1, k, i] = vec[j, k]
+                if np.linealg.norm(problem['xf'][i,:problem['dim']) == 0:
+                    A_line_i[-3, k, i] = -vec[j, k]
+                else:
+                    A_line_f[-2, k, i] = -vec[j, k]
             Aeq.append(A_line_i.reshape((1,-1)))
             beq.append(0)
             Aeq.append(A_line_f.reshape((1,-1)))
             beq.append(0)
 
-    return np.concatenate(A, axis=0), np.array(b)
+    return np.concatenate(Aeq, axis=0), np.array(beq)
 
 
-def lineqconstr(problem):
+def linineqconstr(problem):
     A = []
     b = []
     # deal with initial headings
     for i in range(problem['N_v']):
         if problem['dim'] == 2:
-            vec_i = np.array([tan(problem['xi'][i, 2],-1])
-            vec_f = np.array([tan(problem['xf'][i, 2],-1])
-            vec_par = np.array([1, 
+            alignedvec_i = np.array([[np.cos(problem['xi'][i, 2]), np.sin(problem['xi'][i, 2])]])
+            alignedvec_f = np.array([[np.cos(problem['xf'][i, 2]), np.sin(problem['xf'][i, 2])]])
         elif problem['dim'] == 3:
-            alignedvec_i = np.array([np.cos(problem['azimuth']), np.sin(problem['azimuth']), np.sin(problem['elevation'])])
-            vec_i = np.cross(alignedvec_i, np.array([1,0,0])
-            alignedvec_f = np.array([np.cos(problem['azimuth']), np.sin(problem['azimuth']), np.sin(problem['elevation'])])
-            vec_f = np.cross(alignedvec_f, np.array([1,0,0])
-            if np.linalg.norm(vec_i) == 0:
-                vec_r = np.cross(alignedvec_i, np.array([0, 1, 0]))
-            if np.linalg.norm(vec_f) == 0:
-                vec_f = np.cross(alignedvec_f, np.array([0, 1, 0]))
-            vec_i = np.concatecante(vec_i.reshape((1,-1)), np.cross(alignedvec_i, np.array([0, 0, 1])).reshape((1, -1), axis=0)
-            vec_f = np.concatecante(vec_f.reshape((1,-1)), np.cross(alignedvec_f, np.array([0, 0, 1])).reshape((1, -1), axis=0)
+            alignedvec_i = np.array([[np.cos(problem['azimuth_i'])*np.cos(problem['elevation_i']), np.sin(problem['azimuth_i'])*np.cos(problem['elevation_i']), np.sin(problem['elevation_i'])]])
+            alignedvec_f = np.array([[np.cos(problem['azimuth_f'])*np.cos(problem['elevation_f']), np.sin(problem['azimuth_f'])*np.cos(problem['elevation_f']), np.sin(problem['elevation_f'])]])
+
         for j in range(vec.shape[0]):
             A_line_i = np.zeros((problem['N']+1,problem['dim'],problem['Nv']))
             A_line_f = np.zeros((problem['N']+1,problem['dim'],problem['Nv']))
             for k in range(problem['dim']):
-                A_line_i[0, k, i] = -vec[j, k]
-                A_line_f[0, k, i] = -vec[j, k]
-                if np.linealg.norm(problem['xi'][i,:problem['dim']) == 0:
-                    A_line[2, k, i] = vec[j, k]
+                A_line_i[0, k, i] = -alignedvec_i[j, k]
+                A_line_f[-1, k, i] = alignedvec_f[j, k]
+                if np.linealg.norm(problem['xf'][i,:problem['dim']) == 0:
+                    A_line_i[2, k, i] = vec[j, k]
                 else:
-                    A_line[1, k, i] = vec[j, k]
-            if np.linealg.norm(problem['xf'][i,:problem['dim']) == 0:
-                A_line_i[2, k, i] = vec[j, k]
-            else:
-                A_line_f[1, k, i] = vec[j, k]
-            Aeq.append(A_line_i.reshape((1,-1)))
-            beq.append(0)
-            Aeq.append(A_line_f.reshape((1,-1)))
-            beq.append(0)
-    
+                    A_line_i[1, k, i] = vec[j, k]
+                if np.linealg.norm(problem['xf'][i,:problem['dim']) == 0:
+                    A_line_f[-3, k, i] = -vec[j, k]
+                else:
+                    A_line_f[-2, k, i] = -vec[j, k]
+            A.append(A_line_i.reshape((1,-1)))
+            b.append(0)
+            A.append(A_line_f.reshape((1,-1)))
+            b.append(0)
 
 
 def ineqconstr(x, problem):
     """ Deals with nonlinear inequality constraints"""
     x, t_final = matrify(x, problem)
     c = []
+
+    # speeds
+    dx = problem['derivmat'] @ x
+    ddx = problem['derivmat'] @ dx
+
+    dx_s = evalmat @ dx
+    ddx_s = evalmat @ ddx
+
+    # maximum speed
+    v = np.linalg.norm(dx_s, axis=1)
+    c.append(problem['v_max'] - v)
+
+    # maximum yaw rate
+    c.append(bern.degrelev( bern.sum(problem['r_max'] * (bern.pow(dx, 2) + bern.pow(dy, 2)), - bern.mul(dx, ddy) + bern.mul(ddx, dy)), problem['N']*10 ).flatten())
+    c.append(bern.degrelev( bern.sum(problem['r_max'] * (bern.pow(dx, 2) + bern.pow(dy, 2)), - bern.mul(dx, ddy) + bern.mul(ddx, dy)), problem['N']*10 ).flatten())
 
     # inter vehicles
     c += [veh_coll_avoid(x[:, :2, v1], x[:, :problem['dim'], v2], problem)
@@ -351,8 +316,7 @@ def plot_xy(x, t_final, problem):
 
 def veh_coll_avoid(x1, x2, problem):
     """Calculates """
-    return np.min(np.sqrt(np.sum((problem['elev_mat'] @ (x1 - x2)) ** 2, axis=1))).flatten() - problem[
-        'min_dist_int_veh']
+    return np.min(np.sqrt(np.sum((problem['elev_mat'] @ (x1 - x2)) ** 2, axis=1))).flatten() - problem['min_dist_int_veh']
     # return np.min(np.sum((problem['elev_mat']@(x1-x2))**2, axis=1)).flatten()-problem['min_dist_int_veh']**2
     # return np.sqrt(np.min(np.sum((problem['elev_mat']@(x1-x2))**2, axis=1))).flatten()-problem['min_dist_int_veh']
     # return np.sqrt(np.sum((problem['elev_mat'] @ (x1-x2))**2, axis=1)).flatten() - problem['min_dist_int_veh']
@@ -416,7 +380,7 @@ def run_problem(problem):
     algorithm = {'method':'trust-constr','options':None}
 
     constr = []
-    
+
     Aeq, beq = lineqconstr(problem)
     constr+= [{'type': 'eq', 'fun', lambda x: A@x.reshape((-1,1))-b, 'jac', lambda x: A.ravel() }]
 
@@ -448,6 +412,7 @@ def planner(xi, xf, **keyword_args):
     evaluators = [lambda t: bern.eval(x_out[:, :, i], t_final, t) for i in range(xi.shape[0])]
 
     return evaluators, t_final
+
 
 if __name__ == "__main__":
     main()
