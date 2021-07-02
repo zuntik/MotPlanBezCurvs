@@ -75,17 +75,34 @@ def integr(p, tf):
 
 @lru_cache
 def mulmat(m, n):
-    pass
+    mat = np.zeros(((m+n+1), (m+1)*(n+1)))
+    for i in range(m+n+1):
+        for j in range(max(0, i - n), min(m, i) + 1):
+            mat[i, m*j + i] = comb(i, j) * comb(m + n - i, m - j)
+            #mat[i, j] = comb(i, j) * comb(m + n - i, m - j)
+    return mat/comb(m + n, n)
+
+
+def origmul(p1, p2):
+    m, n = p1.shape[0]-1, p2.shape[0]-1
+    return np.array([np.sum([ comb(m,j)*comb(n,k-j)/comb(m+n,k) * p1[j,:]*p2[k-j,:] for j in range(max(0, k-n) , min(m, k)+1) ], 0) for k in range(m+n+1)])
+
+def mul3(p1, p2):
+    if p2.shape[0] < p1.shape[0]:
+       p1, p2 = p2, p1
+    m, n = p1.shape[0]-1, p2.shape[0]-1
+    return mulmat(m, n) @ (p1 @ p2.T).reshape((-1, 1))
 
 
 def mul(p1, p2):
     """Control points for multiplication"""
-    if p1.shape[0] < p2.shape[0]:
-        p1, p2 = p2, p1
+#    if p1.shape[0] < p2.shape[0]:
+#        p1, p2 = p2, p1
     m, n = p1.shape[0]-1, p2.shape[0]-1
     return np.array([np.sum(
         [comb(i, j) * comb(m + n - i, m - j) * p1[j, :] * p2[i - j, :] for j in range(max(0, i - n), min(m, i) + 1)], 0)
                      for i in range(m + n + 1)]) / comb(m + n, n)
+
 
 def mul2(p1, p2):
     if p1.shape[0] < p2.shape[0]:
@@ -98,13 +115,23 @@ def mul2(p1, p2):
                 out[i] += 0
             else:
                 out[i] += comb(i, j) * comb(m + n - i, m - j) * p1[j, :] * p2[i - j, :] / comb(m+n,n)
-
     return out
 
 a = np.array([1,2,3]).reshape((-1,1))
 b = np.array([4,6]).reshape((-1, 1))
+print('origmul')
+print(origmul(a,b))
 print(mul(a,b))
+print(mul(b,a))
 print(mul2(a,b))
+print(mul3(a,b))
+
+#a = np.array([1,2,3]).reshape((-1,1))
+#b = np.array([4,6,1]).reshape((-1, 1))
+#print(mul(a,b))
+#print(mul(b,a))
+#print(mul2(a,b))
+#print(mul3(a,b))
 
 def pow(p, y):
     """Control points for power"""
