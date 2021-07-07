@@ -13,14 +13,14 @@ def main():
         # 'T': 100,  # runtime
         'xi': np.array([[0, 0]]),  # initial states
         'xf': np.array([[5, 10]]),  # final states
-        'vi': np.array([1]), # initial speeds
-        'vf': np.array([1]), # final speeds
+        'vi': np.array([.2]), # initial speeds
+        'vf': np.array([.2]), # final speeds
         'hi': np.array([0]), # initial heading
         'hf': np.array([np.pi/2]), # final heading
         'N': 10,  # order of the polynomials
         # 'obstacles_circles': [[5, 0, 3], [6,6,4]],  # n lines for n circles where columns are position x, position y, radius
         'v_max': 1,
-        'r_max': 2,
+        'r_max': .2,
     }
     #    problem = {
     #        # 'T': 100,  # runtime
@@ -46,6 +46,7 @@ def main():
     x_out, t_final, cost_final, elapsed_time = run_problem(problem)
     print('The final cost is ' + str(cost_final) + ' and the computation time was ' + str(elapsed_time))
     print(x_out.shape)
+    print(bern.deriv(x_out, t_final))
     plot_xy(x_out, t_final, problem)
 
     # print('Now do the same thing but with the planner function...')
@@ -276,9 +277,7 @@ def ineqconstr(x, problem):
     dx2dy2 = np.sum(bern.pow(dx[:2]), axis=1)
 
     # maximum speed
-    v = np.linalg.norm(dx, axis=1)
-    c.append((problem['v_max'] - bern.degrelev(v, problem['N']*10)).flatten())
-    c.append((bern.degrelev(v, problem['N']*10) - 0).flatten())
+    c.append((problem['v_max']**2 - bern.degrelev(dx2dy2, problem['N']*10)).flatten())
 
     # maximum yaw rate
     dxddyddxdy = -bern.mul(dxp, ddyp) + bern.mul(ddxp, dyp)
@@ -419,7 +418,7 @@ def run_problem(problem):
 
     algorithm = {
         'method': 'SLSQP',
-        'options': {'disp': True, 'ftol': 1e-02, 'maxiter': 1000}
+        'options': {'disp': True, 'ftol': 1e-02, 'maxiter': 5000},
     }
 
     constr = []
