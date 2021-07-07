@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import comb
 from functools import lru_cache
+from scipy.linalg import toeplitz
 
 
 def basis(k, n, tau):
@@ -41,9 +42,16 @@ def derivmat(n, tf):
     return n / tf * (np.hstack((np.zeros((n, 1)), np.eye(n))) - np.hstack((np.eye(n), np.zeros((n, 1)))))
 
 
-def deriv(p, tf):
+def deriv1D(p, tf):
     """Performs derivation of control points p with final time t"""
     return derivmat(p.shape[0] - 1, tf) @ p
+
+
+def deriv(p, tf):
+    out = np.zeros((p.shape[0]-1, *p.shape[1:]))
+    for x in zip(*(y.flat for y in np.meshgrid(*(np.arange(p.shape[i+1]) for i in range(len(p.shape)-1))) ) ):
+        out[(np.arange(out.shape[0]), *x)] = deriv1D(p[(np.arange(p.shape[0]), *x)].reshape((-1, 1)), tf).flatten()
+    return out
 
 
 @lru_cache
@@ -65,7 +73,7 @@ def evalmat(n, tf, times):
 
 def eval(p, tf, times):
     """Performs evaluation on times times"""
-    return evalmat(p.shape[0] - 1, tf, times) @ p
+    return evalmat(p.shape[0] - 1, tf, tuple(times)) @ p
 
 
 def integr(p, tf):
@@ -74,69 +82,34 @@ def integr(p, tf):
 
 
 @lru_cache
-def mulmat(m, n):
-    mat = np.zeros(((m+n+1), (m+1)*(n+1)))
-    for i in range(m+n+1):
-        for j in range(max(0, i - n), min(m, i) + 1):
-            mat[i, m*j + i] = comb(i, j) * comb(m + n - i, m - j)
-            #mat[i, j] = comb(i, j) * comb(m + n - i, m - j)
-    return mat/comb(m + n, n)
+def mulcoefs(m):
+    return comb(m, np.arange(0,m+1))
+
+
+def mul1D(p1, p2):
+    m, n = p1.shape[0]-1, p2.shape[0]-1
+    a = 1/mulcoefs(m+n).reshape((-1, 1))
+    b = toeplitz(c=np.concatenate((mulcoefs(m).reshape((-1, 1))*p1, np.zeros((n,1)))), r=np.zeros(n+1))
+    c = mulcoefs(n).reshape((-1, 1))*p2
+    return a * b @ c
+
+
+def mul(p1, p2):
+    out = np.zeros((p1.shape[0]+p2.shape[0]-1, *p1.shape[1:]))
+    for x in zip(*(y.flat for y in np.meshgrid(*(np.arange(p1.shape[i+1]) for i in range(len(p1.shape)-1))) ) ):
+        out[(np.arange(out.shape[0]), *x)] = mul1D(p1[(np.arange(p1.shape[0]), *x)].reshape((-1, 1)), p2[(np.arange(p2.shape[0]), *x)].reshape((-1, 1))).flatten()
+    return out
 
 
 def origmul(p1, p2):
     m, n = p1.shape[0]-1, p2.shape[0]-1
     return np.array([np.sum([ comb(m,j)*comb(n,k-j)/comb(m+n,k) * p1[j,:]*p2[k-j,:] for j in range(max(0, k-n) , min(m, k)+1) ], 0) for k in range(m+n+1)])
 
-def mul3(p1, p2):
-    if p2.shape[0] < p1.shape[0]:
-       p1, p2 = p2, p1
-    m, n = p1.shape[0]-1, p2.shape[0]-1
-    return mulmat(m, n) @ (p1 @ p2.T).reshape((-1, 1))
 
-
-def mul(p1, p2):
-    """Control points for multiplication"""
-#    if p1.shape[0] < p2.shape[0]:
-#        p1, p2 = p2, p1
-    m, n = p1.shape[0]-1, p2.shape[0]-1
-    return np.array([np.sum(
-        [comb(i, j) * comb(m + n - i, m - j) * p1[j, :] * p2[i - j, :] for j in range(max(0, i - n), min(m, i) + 1)], 0)
-                     for i in range(m + n + 1)]) / comb(m + n, n)
-
-
-def mul2(p1, p2):
-    if p1.shape[0] < p2.shape[0]:
-        p1,p2 = p2, p1
-    m, n = p1.shape[0]-1, p2.shape[0]-1
-    out = np.zeros((m+n+1, p1.shape[1]))
-    for i in range(m + n + 1):
-        for j in range(m+1):
-            if j < i-n or j > i:
-                out[i] += 0
-            else:
-                out[i] += comb(i, j) * comb(m + n - i, m - j) * p1[j, :] * p2[i - j, :] / comb(m+n,n)
-    return out
-
-a = np.array([1,2,3]).reshape((-1,1))
-b = np.array([4,6]).reshape((-1, 1))
-print('origmul')
-print(origmul(a,b))
-print(mul(a,b))
-print(mul(b,a))
-print(mul2(a,b))
-print(mul3(a,b))
-
-#a = np.array([1,2,3]).reshape((-1,1))
-#b = np.array([4,6,1]).reshape((-1, 1))
-#print(mul(a,b))
-#print(mul(b,a))
-#print(mul2(a,b))
-#print(mul3(a,b))
-
-def pow(p, y):
+def pow(p, y=2):
     """Control points for power"""
     if y == 0:
-        return np.ones((1, p.shape[1]))
+        return np.ones((1, *p.shape[1:]))
     temp_p = pow(p, y // 2)
     if y % 2 == 0:
         return mul(temp_p, temp_p)
