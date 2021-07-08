@@ -1,4 +1,3 @@
-from scipy.integrate import solve_ivp
 from . import bernsteinlib as bern
 import numpy as np
 from scipy.optimize import minimize  # , Bounds
@@ -9,31 +8,50 @@ from time import time
 def main():
 
     # first illustrative example
-    problem = {
-        # 'T': 100,  # runtime
-        'xi': np.array([[0, 0]]),  # initial states
-        'xf': np.array([[5, 10]]),  # final states
-        'vi': np.array([.2]), # initial speeds
-        'vf': np.array([.2]), # final speeds
-        'hi': np.array([0]), # initial heading
-        'hf': np.array([np.pi/2]), # final heading
-        'N': 10,  # order of the polynomials
-        # 'obstacles_circles': [[5, 0, 3], [6,6,4]],  # n lines for n circles where columns are position x, position y, radius
-        'v_max': 1,
-        'r_max': .2,
-    }
     #    problem = {
     #        # 'T': 100,  # runtime
-    #        'xi': np.array([[-5, 0]]),  # initial states
-    #        'xf': np.array([[15, 10]]),  # final states
+    #        'xi': np.array([[0, 0]]),  # initial states
+    #        'xf': np.array([[5, 5]]),  # final states
     #        'vi': np.array([1]), # initial speeds
     #        'vf': np.array([1]), # final speeds
     #        'hi': np.array([0]), # initial heading
-    #        'hf': np.array([0]), # final heading
-    #        'N': 10,  # order of the polynomials
+    #        'hf': np.array([np.pi/2]), # final heading
+    #        'N': 20,  # order of the polynomials
     #        # 'obstacles_circles': [[5, 0, 3], [6,6,4]],  # n lines for n circles where columns are position x, position y, radius
-    #        'v_max': 1,
-    #        'r_max': 2,
+    #        'v_max': 1.1,
+    #        'r_max': 5,
+    #        'a_max': None,
+    #        'dr_max': 1,
+    #    }
+
+    problem = {
+        # 'T': 15,
+        'xi': np.array([[0, 5], [5, 0]]),
+        'xf': np.array([[10, 5], [5, 10]]),
+        'vi': np.array([0, 0]),
+        'vf': np.array([0, 0]),
+        'hi': np.array([0, np.pi/2]),
+        'hf': np.array([0, np.pi/2]),
+        'N': 5,
+        'v_max': 1.1,
+        'r_max': 5,
+        'a_max': None,
+        'dr_max': 1,
+    }
+
+    #    problem = {
+    #        'T': 15,
+    #        'xi': np.array([[0, 5]]),
+    #        'xf': np.array([[10, 5]]),
+    #        'vi': np.array([1]),
+    #        'vf': np.array([1]),
+    #        'hi': np.array([0]),
+    #        'hf': np.array([0]),
+    #        'N': 20,
+    #        'v_max': 1.1,
+    #        'r_max': 5,
+    #        'a_max': None,
+    #        'dr_max': 1,
     #    }
 
     problem = {**problem, **{
@@ -41,13 +59,16 @@ def main():
         'cost_fun_single': cost_fun_single,
         # 'recover_xy': recover_xy,
         'plot_boats': False,
+        #'plot_control_points': True,
     }}
 
     x_out, t_final, cost_final, elapsed_time = run_problem(problem)
     print('The final cost is ' + str(cost_final) + ' and the computation time was ' + str(elapsed_time))
-    print(x_out.shape)
-    print(bern.deriv(x_out, t_final))
     plot_xy(x_out, t_final, problem)
+    plt.figure()
+    #plt.plot(np.linspace(0,t_final,100),np.sqrt(bern.eval(np.sum(bern.pow(bern.deriv(x_out[:,:2,0],t_final)),axis=1), t_final, tuple(np.linspace(0,t_final,100).tolist()))))
+    plt.plot(np.linspace(0,t_final,100),np.sqrt(bern.evalspace(np.sum(bern.pow(bern.deriv(x_out[:,:2,0],t_final)),axis=1), t_final, (0,t_final,100))))
+    plt.show()
 
     # print('Now do the same thing but with the planner function...')
     # x_out_planners, t_final_planner = planner(**problem)
@@ -60,26 +81,12 @@ def main():
 ################################################################################
 # functions
 ################################################################################
-def recover_xy(x, t_final, _):
-    def ode_func(t, val, v, w):
-        _, _, psi = val
-        dx = v(t) * np.cos(psi)
-        dy = v(t) * np.sin(psi)
-        dpsi = w(t)
-        return np.array([dx, dy, dpsi])
-
-    def pol_v(t): return bern.eval(x[:, 3], t_final, t)
-
-    def pol_w(t): return bern.eval(x[:, 4], t_final, t)
-
-    sol = solve_ivp(ode_func, [0, t_final], x[0, :3], args=(pol_v, pol_w), dense_output=True, vectorized=True)
-
-    return np.linspace(0, t_final, 1000), sol.sol(np.linspace(0, t_final, 1000))
-
-
 def cost_fun_single(x, t_final, problem):
     """the running cost for a singular vehicle"""
-    return t_final
+    if problem['T']==0:
+        return t_final
+    else:
+        return np.sum(bern.pow(bern.deriv(x, t_final)))
 
 
 ################################################################################
@@ -110,9 +117,9 @@ def cost_fun(x, problem):
         j += np.sum(logbarrierfunc(0.1, c, problem['use_sigma']))
 
     x, t_final = matrify(x, problem)
-    # j += np.sum([problem['cost_fun_single'](x[:, :, i], t_final, problem) for i in range(problem['Nv'])])
+    j += np.sum([problem['cost_fun_single'](x[:, :, i], t_final, problem) for i in range(problem['Nv'])])
     # return j
-    return t_final
+    return j
 
 
 
@@ -139,7 +146,7 @@ def lineqconstr(problem):
                 Aeq.append(np.array([0]))
             beq.append(problem['xf'][i, j])
 
-        # deal with initial and final speeds (inc. if they are different to 0)
+        # deal with initial and final speeds (inc. if they are equal to 0)
         # deal with initial and final headings if the speed is 0
         vi = getvec(problem['vi'][i], problem['hi'][i])
         for j in range(problem['dim']):
@@ -151,7 +158,6 @@ def lineqconstr(problem):
                 Aeq.append(np.array([-vi[j]/problem['N']]))
                 b = 0
             else:
-                Aeq.append(np.array([1]))
                 b = vi[j]*problem['T']/problem['N']
             beq.append(b)
 
@@ -170,11 +176,11 @@ def lineqconstr(problem):
                 A_line = np.zeros((problem['N']+1,problem['dim'],problem['Nv']))
                 for k in range(problem['dim']):
                     A_line[0, k, i] = -vec_i[j, k]
-                    if np.linealg.norm(problem['xi'][i,:problem['dim']]) == 0:
+                    if np.linalg.norm(problem['xi'][i,:problem['dim']]) == 0:
                         A_line[2, k, i] = vec_i[j, k]
                     else:
                         A_line[1, k, i] = vec_i[j, k]
-                Aeq.append(A_line_i.flatten())
+                Aeq.append(A_line.flatten())
                 if problem['T']==0:
                     Aeq.append(np.array([0]))
                 beq.append(0)
@@ -189,7 +195,6 @@ def lineqconstr(problem):
                 Aeq.append([-vf[j]/problem['N']])
                 b = 0
             else:
-                Aeq.append([1])
                 b = vf[j]*problem['T']/problem['N']
             beq.append(b)
 
@@ -208,11 +213,11 @@ def lineqconstr(problem):
                 A_line = np.zeros((problem['N']+1,problem['dim'],problem['Nv']))
                 for k in range(problem['dim']):
                     A_line[0, k, i] = -vec_f[j, k]
-                    if np.linealg.norm(problem['xi'][i,:problem['dim']]) == 0:
+                    if np.linalg.norm(problem['xi'][i,:problem['dim']]) == 0:
                         A_line[2, k, i] = vec_f[j, k]
                     else:
                         A_line[1, k, i] = vec_f[j, k]
-                Aeq.append(A_line_i.flatten())
+                Aeq.append(A_line.flatten())
                 if problem['T']==0:
                     Aeq.append([0])
                 beq.append(0)
@@ -250,10 +255,16 @@ def linineqconstr(problem):
             if problem['T']==0:
                 A.append([0])
             b.append(0)
-    if len(A) == 0:
-        return None, None
-    else:
+
+    if problem['T'] == 0:
+        A_line = np.zeros((problem['N']+1)*problem['dim']*problem['Nv']+1)
+        A_line[-1] = 1
+        A.append(A_line)
+        b.append(0)
+    if len(A) != 0:
         return np.concatenate(A).reshape((len(b), -1)), np.array(b).reshape((-1, 1))
+    else:
+        return None, None
 
 
 def getvec(v, azimuth, elevation=None):
@@ -274,7 +285,7 @@ def ineqconstr(x, problem):
     ddxp = ddx[:,0,:]
     ddyp = ddx[:,1,:]
 
-    dx2dy2 = np.sum(bern.pow(dx[:2]), axis=1)
+    dx2dy2 = np.sum(bern.pow(dx[:,:2,:]), axis=1)
 
     # maximum speed
     c.append((problem['v_max']**2 - bern.degrelev(dx2dy2, problem['N']*10)).flatten())
@@ -284,8 +295,12 @@ def ineqconstr(x, problem):
     c.append(bern.degrelev( bern.add(problem['r_max']*dx2dy2,  dxddyddxdy), problem['N']*10 ).flatten())
     c.append(bern.degrelev( bern.add(problem['r_max']*dx2dy2, -dxddyddxdy), problem['N']*10 ).flatten())
 
+    # maximum yaw acceleration
+    dxddxdyddy = np.sum(bern.mul(dx[:, :2, :],ddx[:, :2, :]), axis=1)
+    c.append(bern.degrelev(bern.add(problem['dr_max']**2 * dx2dy2, - 2 * dxddxdyddy), problem['N']*10).flatten())
+
     # inter vehicles
-    c += [veh_coll_avoid(x[:, :2, v1], x[:, :problem['dim'], v2], problem)
+    c += [veh_coll_avoid(x[:, :problem['dim'], v1], x[:, :problem['dim'], v2], problem)
           for v1 in range(problem['Nv']) for v2 in range(v1 + 1, problem['Nv'])]
 
     # obstacles
@@ -295,8 +310,14 @@ def ineqconstr(x, problem):
 
 def rand_init_guess(problem):
     """Calculates a random initial guess"""
-    return np.random.rand((problem['N']+1)*problem['dim']*problem['Nv'] + (1 if problem['T'] == 0 else 0))
+    return np.random.rand((problem['N']+1)*problem['dim']*problem['Nv'] + (1 if problem['T'] == 0 else 0))+1
 
+
+def lin_init_guess(problem):
+    if problem['T'] != 0:
+        return np.linspace(problem['xi'].T, problem['xf'].T, problem['N']+1).flatten()
+    else:
+        return np.append(np.linspace(problem['xi'].T, problem['xf'].T, problem['N']+1).flatten(), 1)
 
 
 def process_problem(problem_orig):
@@ -314,11 +335,11 @@ def process_problem(problem_orig):
     problem.setdefault('obstacles_circles', [])
     problem.setdefault('obstacles_polygons', [])
     problem.setdefault('min_dist_obs', 0)
-    problem.setdefault('min_dist_int_veh', 2)
+    problem.setdefault('min_dist_int_veh', 1)
     # noinspection PyTypeChecker
     problem = {**problem, **{
         'obstacles':
-            [TOLCircle(c[:-1], c[-1], problem['elev_mat'], problem['min_dist_obs'])
+            [TOLCircle(c[:-1], c[-1], problem['min_dist_obs'])
              for c in problem['obstacles_circles']] +
             [TOLPolygon(m) for m in problem['obstacles_polygons']]
     }}
@@ -339,7 +360,6 @@ def plot_xy(x, t_final, problem):
     ax.set_xlabel('y')
     ax.set_ylabel('x')
     for i in range(problem['Nv']):
-        print(x[:,:2,i].shape)
         curve_plot, _ = bern.plot(np.fliplr(x[:, :2, i]), t_final, plotcpts=problem['plot_control_points'], ax=ax)
         curve_plot.set_label('Bernstein Polynomial for vehicle ' + str(i))
         if problem['recover_xy'] is not None:
@@ -348,8 +368,7 @@ def plot_xy(x, t_final, problem):
             recovered_plot.set_label('ODE solution for vehicle ' + str(i))
         ax.legend(loc='upper right', fontsize='x-small')
         if problem['plot_boats']:
-            points = bern.eval(x[:, :, i], t_final, np.linspace(0, t_final, 10))
-            print(points.shape)
+            points = bern.evalspace(x[:, :, i], t_final, (0, t_final, 10))
             for ti in range(10):
                 ax.add_patch(plot_boat(points[ti, 1], points[ti, 0], np.pi / 2 - points[ti, 2], problem['boat_size']))
     for obs in problem['obstacles']:
@@ -359,7 +378,7 @@ def plot_xy(x, t_final, problem):
 
 def veh_coll_avoid(x1, x2, problem):
     """Calculates """
-    return np.min(np.sqrt(np.sum((problem['elev_mat'] @ (x1 - x2)) ** 2, axis=1))).flatten() - problem['min_dist_int_veh']
+    return np.min(np.sqrt(np.sum((bern.degrelev(x1 - x2, problem['N']*10)) ** 2, axis=1))).flatten() - problem['min_dist_int_veh']**2
     # return np.min(np.sum((problem['elev_mat']@(x1-x2))**2, axis=1)).flatten()-problem['min_dist_int_veh']**2
     # return np.sqrt(np.min(np.sum((problem['elev_mat']@(x1-x2))**2, axis=1))).flatten()-problem['min_dist_int_veh']
     # return np.sqrt(np.sum((problem['elev_mat'] @ (x1-x2))**2, axis=1)).flatten() - problem['min_dist_int_veh']
@@ -378,15 +397,15 @@ def plot_boat(x, y, yaw, size):
 
 
 class TOLCircle:
-    def __init__(self, centre, rad, elev_mat, min_dist):
+    def __init__(self, centre, rad, min_dist):
         self.centre = centre
         self.rad = rad
-        self.elev_mat = elev_mat
         self.min_dist = min_dist
 
     def avoid(self, poly):
         return np.sqrt(
-            np.min(np.sum((self.elev_mat @ (poly - self.centre)) ** 2, axis=1))).flatten() - self.rad - self.min_dist
+            #np.min(np.sum((self.elev_mat @ (poly - self.centre)) ** 2, axis=1))).flatten() - self.rad - self.min_dist
+            np.min(np.sum(bern.pow(bern.degrelev(poly - self.centre, 200)), axis=1))).flatten() - self.rad - self.min_dist
         # return np.sqrt(np.min(np.sum(self.elev_mat@(poly-self.centre)**2, axis=1))).flatten()-self.rad-self.min_dist
 
     def plot(self, plot_inverted=False, ax=None):
@@ -414,7 +433,8 @@ def run_problem(problem):
 
     problem = process_problem(problem)  # preserves the original problem dict
 
-    xin = problem.get('init_guess', rand_init_guess)(problem)
+    #xin = problem.get('init_guess', rand_init_guess)(problem)
+    xin = problem.get('init_guess', lin_init_guess)(problem)
 
     algorithm = {
         'method': 'SLSQP',
@@ -430,9 +450,7 @@ def run_problem(problem):
 
     A, b = linineqconstr(problem)
     if A is not None:
-        #constr.append({'type': 'ineq', 'fun': lambda x: (A@x.reshape((-1,1))-b).flatten(), 'jac': lambda x: A.ravel() })
         constr.append({'type': 'ineq', 'fun': lambda x: (A@x.reshape((-1,1))-b).flatten() })
-        #print(A@xin.reshape((-1,1))-b)
 
     if not problem['use_log_bar']:
         constr += [{'type': 'ineq', 'fun': lambda x: ineqconstr(x, problem)}]
@@ -440,9 +458,13 @@ def run_problem(problem):
 
     #print(cost_fun(xin, problem))
 
+    bnds=[ (-np.inf, np.inf) for i in range((problem['N']+1)*problem['dim']*problem['Nv']) ]
+    if problem['T'] == 0:
+        bnds.append((.1, np.inf))
+
     t = time()
     # noinspection PyTypeChecker
-    res = minimize(cost_fun, xin, args=problem, method=algorithm['method'], constraints=constr, options=algorithm['options'])
+    res = minimize(cost_fun, xin, args=problem, method=algorithm['method'], bounds=bnds, constraints=constr, options=algorithm['options'])
     elapsed_time = time() - t
     x_out, t_final = matrify(res.x, problem)
     return x_out, t_final, res.fun, elapsed_time

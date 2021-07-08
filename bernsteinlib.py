@@ -44,7 +44,7 @@ def derivmat(n, tf):
 
 def deriv1D(p, tf):
     """Performs derivation of control points p with final time t"""
-    return derivmat(p.shape[0] - 1, tf) @ p
+    return derivmat(p.shape[0] - 1, 1)/tf @ p
 
 
 def deriv(p, tf):
@@ -65,7 +65,6 @@ def derivelev(p, tf):
     return derivelevmat(p.shape[0] - 1, tf) @ p
 
 
-@lru_cache
 def evalmat(n, tf, times):
     """Returns a matrix to perform evaluation on times times"""
     return np.array([[basis(j, n, ti / tf) for j in range(n + 1)] for ti in np.array(times).flatten()])
@@ -73,7 +72,16 @@ def evalmat(n, tf, times):
 
 def eval(p, tf, times):
     """Performs evaluation on times times"""
-    return evalmat(p.shape[0] - 1, tf, tuple(times)) @ p
+    return evalmat(p.shape[0] - 1, tf, times) @ p
+
+
+@lru_cache
+def evalspacemat(n, tf, time_space):
+    return np.array([[basis(j, n, ti / tf) for j in range(n + 1)] for ti in np.linspace(*time_space)])
+
+
+def evalspace(p, tf, time_space):
+    return evalspacemat(p.shape[0] - 1, tf, time_space) @ p
 
 
 def integr(p, tf):

@@ -49,7 +49,10 @@ def cost_fun(x, problem):
         j += np.sum(logbarrierfunc(0.1, c, problem['use_sigma']))
 
     x, t_final = matrify(x, problem)
-    j += np.sum([problem['cost_fun_single'](x[:, :, i], t_final, problem) for i in range(problem['Nv'])])
+    if problem['T']!=0:
+        j += np.sum([problem['cost_fun_single'](x[:, :, i], t_final, problem) for i in range(problem['Nv'])])
+    else:
+        j = t_final
     return j
 
 
@@ -135,8 +138,8 @@ def process_problem(problem_orig):
         # common parameters
         'DiffMat': bern.derivelevmat(problem['N'], 1),
         'elev_mat': bern.degrelevmat(problem['N'], problem['N'] * 10),
-        'EvalMat': bern.evalmat(problem['N'], problem['T'] if problem['T'] != 0 else 1,
-                                np.linspace(0, problem['T'] if problem['T'] != 0 else 1, 1000)),
+        'EvalMat': bern.evalspacemat(problem['N'], problem['T'] if problem['T'] != 0 else 1,
+                                (0, problem['T'] if problem['T'] != 0 else 1, 1000)),
         'num_states': problem['xi'].shape[1],
         'Nv': problem['xi'].shape[0],
     }}
@@ -245,7 +248,6 @@ def run_problem(problem):
         'method': 'SLSQP',
         'options': {'disp': True, 'ftol': 1e-02, 'maxiter': 1000}
     }
-    algorithm = {'method':'trust-constr','options':None}
 
     constr = []
     constr += [{'type': 'eq', 'fun': lambda x: eqconstr(x, problem)}]

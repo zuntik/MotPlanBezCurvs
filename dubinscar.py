@@ -2,24 +2,25 @@ from .trajecoptim import run_problem, plot_xy, planner
 from scipy.integrate import solve_ivp
 from . import bernsteinlib as bern
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def main():
 
     # first illustrative example
     offset = np.array([1234, 185943, 0, 0, 0])
-    problem = {
-        # 'T': 100,  # runtime
-        'xi': np.array([[-5, 0, 0, 9, 0]])+ offset,  # initial states
-        'xf': np.array([[15, 10, 0, 0, 0]])+offset,  # final states
-        'N': 50,  # order of the polynomials
-        'obstacles_circles': [[5, 0, 3], [6,6,4]],  # n lines for n circles where columns are position x, position y, radius
-        #'obstacles_circles': [[5+offset[0], 0+offset[1], 3]],  # n lines for n circles where columns are position x, position y, radius
-        'state_bounds': [None, None, None, (-.01, 1), (-2, 2)]
-    }
+    #    problem = {
+    #        # 'T': 100,  # runtime
+    #        'xi': np.array([[-5, 0, 0, 9, 0]])+ offset,  # initial states
+    #        'xf': np.array([[15, 10, 0, 0, 0]])+offset,  # final states
+    #        'N': 50,  # order of the polynomials
+    #        'obstacles_circles': [[5, 0, 3], [6,6,4]],  # n lines for n circles where columns are position x, position y, radius
+    #        #'obstacles_circles': [[5+offset[0], 0+offset[1], 3]],  # n lines for n circles where columns are position x, position y, radius
+    #        'state_bounds': [None, None, None, (-.01, 1), (-2, 2)]
+    #    }
 
     #    problem = {
-    #        'T': 10,  # runtime
+    #        #'T': 10,  # runtime
     #        'xi': np.array([[0, 0, 0, 1, 0]])+ offset,  # initial states
     #        'xf': np.array([[5, 5, np.pi / 2, 1, 0]])+offset,  # final states
     #        'N': 20,  # order of the polynomials
@@ -27,19 +28,19 @@ def main():
     #        'state_bounds': [None, None, None, (-1, 1), (-5, 5)]
     #    }
 
-    #    problem = {
-    #        'N': 30,
-    #        'T': 15,
-    #        'xi': np.array([
-    #            [0, 5, 0, 1, 0],
-    #            [5, 0, np.pi / 2, 1, 0]
-    #        ]),
-    #        'xf': np.array([
-    #            [10, 5, 0, 1, 0],
-    #            [5, 10, np.pi / 2, 1, 0]
-    #        ]),
-    #        'min_dist_int_veh': 2,
-    #    }
+    problem = {
+        'N': 30,
+        #'T': 15,
+        'xi': np.array([
+            [0, 5, 0, 1, 0],
+            [5, 0, np.pi / 2, 1, 0]
+        ]),
+        'xf': np.array([
+            [10, 5, 0, 1, 0],
+            [5, 10, np.pi / 2, 1, 0]
+        ]),
+        'min_dist_int_veh': 2,
+    }
 
     #    problem = {
     #        'N': 20,
@@ -71,6 +72,11 @@ def main():
     x_out, t_final, cost_final, elapsed_time = run_problem(problem)
     print('The final cost is ' + str(cost_final) + ' and the computation time was ' + str(elapsed_time))
     plot_xy(x_out, t_final, problem)
+
+    plt.figure()
+    #plt.plot(np.linspace(0,t_final,100),np.sqrt(bern.eval(np.sum(bern.pow(bern.deriv(x_out[:,:2,0],t_final)),axis=1), t_final, tuple(np.linspace(0,t_final,100).tolist()))))
+    plt.plot(np.linspace(0,t_final,100),np.sqrt(bern.evalspace(np.sum(bern.pow(bern.deriv(x_out[:,:2,0],t_final)),axis=1), t_final, (0,t_final,100))))
+    plt.show()
 
     # print('Now do the same thing but with the planner function...')
     # x_out_planners, t_final_planner = planner(**problem)
@@ -114,7 +120,7 @@ def dynamics5vars(x, t_final, problem):
 def cost_fun_single(x, t_final, problem):
     """the running cost for a singular vehicle"""
     if problem['T'] == 0:
-        return t_final 
+        return t_final
     v = x[:, 3]
     w = x[:, 4]
     a = (problem['DiffMat'] / t_final) @ v
