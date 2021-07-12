@@ -16,7 +16,7 @@ def main():
     #        'vf': np.array([1]), # final speeds
     #        'hi': np.array([0]), # initial heading
     #        'hf': np.array([np.pi/2]), # final heading
-    #        'N': 20,  # order of the polynomials
+    #        'N': 10,  # order of the polynomials
     #        # 'obstacles_circles': [[5, 0, 3], [6,6,4]],  # n lines for n circles where columns are position x, position y, radius
     #        'v_max': 1.1,
     #        'r_max': 5,
@@ -24,30 +24,43 @@ def main():
     #        'dr_max': 1,
     #    }
 
-    problem = {
-        # 'T': 15,
-        'xi': np.array([[0, 5], [5, 0]]),
-        'xf': np.array([[10, 5], [5, 10]]),
-        'vi': np.array([0, 0]),
-        'vf': np.array([0, 0]),
-        'hi': np.array([0, np.pi/2]),
-        'hf': np.array([0, np.pi/2]),
-        'N': 5,
-        'v_max': 1.1,
-        'r_max': 5,
-        'a_max': None,
-        'dr_max': 1,
-    }
+    #    problem = {
+    #        # 'T': 15,
+    #        'xi': np.array([[0, 5], [5, 0]]),
+    #        'xf': np.array([[10, 5], [5, 10]]),
+    #        'vi': np.array([1, 1]),
+    #        'vf': np.array([1, 1]),
+    #        'hi': np.array([0, np.pi/2]),
+    #        'hf': np.array([0, np.pi/2]),
+    #        'N': 5,
+    #        'v_max': 1.1,
+    #        'r_max': 5,
+    #        'a_max': None,
+    #        'dr_max': 1,
+    #    }
 
     #    problem = {
-    #        'T': 15,
-    #        'xi': np.array([[0, 5]]),
-    #        'xf': np.array([[10, 5]]),
-    #        'vi': np.array([1]),
-    #        'vf': np.array([1]),
-    #        'hi': np.array([0]),
-    #        'hf': np.array([0]),
     #        'N': 20,
+    #        'T': 20,
+    #        'xi': np.array([
+    #            [-10, 4 ],
+    #            [-10, -4],
+    #            [-10, 0 ],
+    #            [0, -10 ],
+    #        ]),
+    #        'xf': np.array([
+    #            [10, -3],
+    #            [10, 3 ],
+    #            [10, 0 ],
+    #            [0, 10 ],
+    #        ]),
+    #        #'obstacles_circles': [[0, 0, 3]],
+    #        'min_dist_int_veh': 1,
+    #        'vi': np.array([1,1,1,1]),
+    #        'vf': np.array([1,1,1,1]),
+    #        'hi': np.array([0,0,0,0]),
+    #        'hf': np.array([0,0,0,0]),
+    #        'N': 10,
     #        'v_max': 1.1,
     #        'r_max': 5,
     #        'a_max': None,
@@ -83,10 +96,12 @@ def main():
 ################################################################################
 def cost_fun_single(x, t_final, problem):
     """the running cost for a singular vehicle"""
-    if problem['T']==0:
-        return t_final
-    else:
-        return np.sum(bern.pow(bern.deriv(x, t_final)))
+    #return np.sum(bern.pow(bern.deriv(x, t_final))) + t_final
+    return 1000*np.sum((x[1:,:]-x[:-1,:])**2) + t_final
+    #    if problem['T']==0:
+    #        return t_final
+    #    else:
+    #        return np.sum(bern.pow(bern.deriv(x, t_final)))
 
 
 ################################################################################

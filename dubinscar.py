@@ -9,15 +9,16 @@ def main():
 
     # first illustrative example
     offset = np.array([1234, 185943, 0, 0, 0])
-    #    problem = {
-    #        # 'T': 100,  # runtime
-    #        'xi': np.array([[-5, 0, 0, 9, 0]])+ offset,  # initial states
-    #        'xf': np.array([[15, 10, 0, 0, 0]])+offset,  # final states
-    #        'N': 50,  # order of the polynomials
-    #        'obstacles_circles': [[5, 0, 3], [6,6,4]],  # n lines for n circles where columns are position x, position y, radius
-    #        #'obstacles_circles': [[5+offset[0], 0+offset[1], 3]],  # n lines for n circles where columns are position x, position y, radius
-    #        'state_bounds': [None, None, None, (-.01, 1), (-2, 2)]
-    #    }
+    problem = {
+        # 'T': 100,  # runtime
+        'xi': np.array([[-5, 0, 0, 9, 0]]),  # initial states
+        'xf': np.array([[15, 10, 0, 0, 0]]),  # final states
+        'N': 50,  # order of the polynomials
+        #'obstacles_circles': [[5, 0, 3], [6,6,4]],  # n lines for n circles where columns are position x, position y, radius
+        #'obstacles_circles': [[5, 0, 3]],  # n lines for n circles where columns are position x, position y, radius
+        'obstacles_circles': [[6, 6, 4]],  # n lines for n circles where columns are position x, position y, radius
+        'state_bounds': [None, None, None, (-.01, 1), (-2, 2)]
+    }
 
     #    problem = {
     #        #'T': 10,  # runtime
@@ -28,39 +29,39 @@ def main():
     #        'state_bounds': [None, None, None, (-1, 1), (-5, 5)]
     #    }
 
-    problem = {
-        'N': 30,
-        #'T': 15,
-        'xi': np.array([
-            [0, 5, 0, 1, 0],
-            [5, 0, np.pi / 2, 1, 0]
-        ]),
-        'xf': np.array([
-            [10, 5, 0, 1, 0],
-            [5, 10, np.pi / 2, 1, 0]
-        ]),
-        'min_dist_int_veh': 2,
-    }
-
     #    problem = {
-    #        'N': 20,
-    #        'T': 20,
+    #        'N': 30,
+    #        'T': 15,
     #        'xi': np.array([
-    #            [-10, 4, 0, 1, 0],
-    #            [-10, -4, 0, 1, 0],
-    #            [-10, 0, 0, 1, 0],
-    #            [0, -10, 0, 1, 0],
+    #            [0, 5, 0, 1, 0],
+    #            [5, 0, np.pi / 2, 1, 0]
     #        ]),
     #        'xf': np.array([
-    #            [10, -3, 0, 1, 0],
-    #            [10, 3, 0, 1, 0],
-    #            [10, 0, 0, 1, 0],
-    #            [0, 10, 0, 1, 0],
+    #            [10, 5, 0, 1, 0],
+    #            [5, 10, np.pi / 2, 1, 0]
     #        ]),
-    #        'obstacles_circles': [[0, 0, 3]],
-    #        'min_dist_int_veh': 1,
-    #        'state_bounds': [None, None, None, (-.2, 2), (-2, 2)],
+    #        'min_dist_int_veh': 2,
     #    }
+
+    problem = {
+        'N': 20,
+        'T': 20,
+        'xi': np.array([
+            [-10, 4, 0, 1, 0],
+            [-10, -4, 0, 1, 0],
+            [-10, 0, 0, 1, 0],
+            [0, -10, 0, 1, 0],
+        ]),
+        'xf': np.array([
+            [10, -3, 0, 1, 0],
+            [10, 3, 0, 1, 0],
+            [10, 0, 0, 1, 0],
+            [0, 10, 0, 1, 0],
+        ]),
+        'obstacles_circles': [[0, 0, 3]],
+        'min_dist_int_veh': 1,
+        'state_bounds': [None, None, None, (-.2, 2), (-2, 2)],
+    }
 
     problem = {**problem, **{
         # functions
@@ -120,7 +121,7 @@ def dynamics5vars(x, t_final, problem):
 def cost_fun_single(x, t_final, problem):
     """the running cost for a singular vehicle"""
     if problem['T'] == 0:
-        return t_final
+        return t_final + np.sum((x[1:,:2]-x[:-1,:2])**2)
     v = x[:, 3]
     w = x[:, 4]
     a = (problem['DiffMat'] / t_final) @ v
