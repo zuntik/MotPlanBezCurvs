@@ -9,7 +9,7 @@ def main():
 
     # first illustrative example
     #    problem = {
-    #        # 'T': 100,  # runtime
+    #        'T': 10,  # runtime
     #        'xi': np.array([[0, 0]]),  # initial states
     #        'xf': np.array([[5, 5]]),  # final states
     #        'vi': np.array([1]), # initial speeds
@@ -39,33 +39,33 @@ def main():
     #        'dr_max': 1,
     #    }
 
-    #    problem = {
-    #        'N': 20,
-    #        'T': 20,
-    #        'xi': np.array([
-    #            [-10, 4 ],
-    #            [-10, -4],
-    #            [-10, 0 ],
-    #            [0, -10 ],
-    #        ]),
-    #        'xf': np.array([
-    #            [10, -3],
-    #            [10, 3 ],
-    #            [10, 0 ],
-    #            [0, 10 ],
-    #        ]),
-    #        #'obstacles_circles': [[0, 0, 3]],
-    #        'min_dist_int_veh': 1,
-    #        'vi': np.array([1,1,1,1]),
-    #        'vf': np.array([1,1,1,1]),
-    #        'hi': np.array([0,0,0,0]),
-    #        'hf': np.array([0,0,0,0]),
-    #        'N': 10,
-    #        'v_max': 1.1,
-    #        'r_max': 5,
-    #        'a_max': None,
-    #        'dr_max': 1,
-    #    }
+    problem = {
+        'N': 20,
+        'T': 20,
+        'xi': np.array([
+            [-10, 4 ],
+            [-10, -4],
+            [-10, 0 ],
+            [0, -10 ],
+        ]),
+        'xf': np.array([
+            [10, -3],
+            [10, 3 ],
+            [10, 0 ],
+            [0, 10 ],
+        ]),
+        #'obstacles_circles': [[0, 0, 3]],
+        'min_dist_int_veh': 1,
+        'vi': np.array([1,1,1,1]),
+        'vf': np.array([1,1,1,1]),
+        'hi': np.array([0,0,0,0]),
+        'hf': np.array([0,0,0,0]),
+        'N': 10,
+        'v_max': 1.1,
+        'r_max': 5,
+        'a_max': None,
+        'dr_max': 1,
+    }
 
     problem = {**problem, **{
         # functions
@@ -76,6 +76,8 @@ def main():
     }}
 
     x_out, t_final, cost_final, elapsed_time = run_problem(problem)
+    print(x_out[ 0,:,:] - problem['xi'].T)
+    print(x_out[-1,:,:] - problem['xf'].T)
     print('The final cost is ' + str(cost_final) + ' and the computation time was ' + str(elapsed_time))
     plot_xy(x_out, t_final, problem)
     plt.figure()
@@ -97,7 +99,12 @@ def main():
 def cost_fun_single(x, t_final, problem):
     """the running cost for a singular vehicle"""
     #return np.sum(bern.pow(bern.deriv(x, t_final))) + t_final
-    return 1000*np.sum((x[1:,:]-x[:-1,:])**2) + t_final
+    dx = x[1:,:]-x[:-1,:]
+    ddx = dx[1:,:]-dx[:-1,:]
+    ddx = 0
+    # https://stackoverflow.com/a/47443343
+    return 1000*np.sqrt(np.sum((dx)**2)) + 1000*np.sqrt(np.sum((ddx)**2))+ t_final
+    #return 100* (np.sum(np.linalg.norm(dx,axis=1))+np.linalg.norm(ddx, axis=1)) + t_final
     #    if problem['T']==0:
     #        return t_final
     #    else:
@@ -473,7 +480,16 @@ def run_problem(problem):
 
     #print(cost_fun(xin, problem))
 
-    bnds=[ (-np.inf, np.inf) for i in range((problem['N']+1)*problem['dim']*problem['Nv']) ]
+    lb = -np.inf * np.ones(((problem['N']+1),problem['dim'],problem['Nv']))
+    ub = np.inf * np.ones(((problem['N']+1),problem['dim'],problem['Nv']))
+
+    lb[0,:,:] = problem['xi'].T - .1
+    ub[0,:,:] = problem['xi'].T + .1
+    lb[-1,:,:] = problem['xf'].T -.1
+    ub[-1,:,:] = problem['xf'].T + .1
+
+    bnds = list(zip(lb.flatten(), ub.flatten()))
+
     if problem['T'] == 0:
         bnds.append((.1, np.inf))
 

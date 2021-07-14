@@ -5,9 +5,14 @@ from functools import lru_cache
 from scipy.linalg import toeplitz
 
 
+@lru_cache
+def allcombs(m):
+    return comb(m, np.arange(0,m+1))
+
+
 def basis(k, n, tau):
     """Returns the evaluation of a bernstein basis"""
-    return comb(n, k) * (1 - tau) ** (n - k) * tau ** k
+    return allcombs(n)[k] * (1 - tau) ** (n - k) * tau ** k
 
 
 @lru_cache
@@ -89,16 +94,11 @@ def integr(p, tf):
     return tf / p.shape[0] * np.sum(p, 0)
 
 
-@lru_cache
-def mulcoefs(m):
-    return comb(m, np.arange(0,m+1))
-
-
 def mul1D(p1, p2):
     m, n = p1.shape[0]-1, p2.shape[0]-1
-    a = 1/mulcoefs(m+n).reshape((-1, 1))
-    b = toeplitz(c=np.concatenate((mulcoefs(m).reshape((-1, 1))*p1, np.zeros((n,1)))), r=np.zeros(n+1))
-    c = mulcoefs(n).reshape((-1, 1))*p2
+    a = 1/allcombs(m+n).reshape((-1, 1))
+    b = toeplitz(c=np.concatenate((allcombs(m).reshape((-1, 1))*p1, np.zeros((n,1)))), r=np.zeros(n+1))
+    c = allcombs(n).reshape((-1, 1))*p2
     return a * b @ c
 
 
