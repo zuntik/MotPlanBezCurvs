@@ -95,17 +95,14 @@ def integr(p, tf):
 
 
 def mul1D(p1, p2):
-    m, n = p1.shape[0]-1, p2.shape[0]-1
-    a = 1/allcombs(m+n).reshape((-1, 1))
-    b = toeplitz(c=np.concatenate((allcombs(m).reshape((-1, 1))*p1, np.zeros((n,1)))), r=np.zeros(n+1))
-    c = allcombs(n).reshape((-1, 1))*p2
-    return a * b @ c
+    m, n = len(p1) - 1, len(p2) - 1
+    return 1/allcombs(m+n) * np.convolve(allcombs(m)*p1, allcombs(n)*p2)
 
 
 def mul(p1, p2):
     out = np.zeros((p1.shape[0]+p2.shape[0]-1, *p1.shape[1:]))
     for x in zip(*(y.flat for y in np.meshgrid(*(np.arange(p1.shape[i+1]) for i in range(len(p1.shape)-1))) ) ):
-        out[(np.arange(out.shape[0]), *x)] = mul1D(p1[(np.arange(p1.shape[0]), *x)].reshape((-1, 1)), p2[(np.arange(p2.shape[0]), *x)].reshape((-1, 1))).flatten()
+        out[(np.arange(out.shape[0]), *x)] = mul1D(p1[(np.arange(p1.shape[0]), *x)], p2[(np.arange(p2.shape[0]), *x)])
     return out
 
 
