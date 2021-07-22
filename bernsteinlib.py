@@ -95,8 +95,8 @@ def integr(p, tf):
 
 
 def mul1D(p1, p2):
-    m, n = len(p1) - 1, len(p2) - 1
-    return 1/allcombs(m+n) * np.convolve(allcombs(m)*p1, allcombs(n)*p2)
+    m, n = p1.shape[0] - 1, p2.shape[0] - 1
+    return  np.convolve(allcombs(m)*p1, allcombs(n)*p2) / allcombs(m+n)
 
 
 def mul(p1, p2):

@@ -146,7 +146,7 @@ def process_problem(problem_orig):
     problem.setdefault('obstacles_circles', [])
     problem.setdefault('obstacles_polygons', [])
     problem.setdefault('min_dist_obs', 0)
-    problem.setdefault('min_dist_int_veh', 2)
+    problem.setdefault('min_dist_int_veh', .95)
     # noinspection PyTypeChecker
     problem = {**problem, **{
         'obstacles':

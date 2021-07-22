@@ -7,54 +7,51 @@ import matplotlib.pyplot as plt
 
 def main():
 
-    # first illustrative example
-
-    offset = np.array([491935.997, 4290797.518, 0, 0, 0])
-    problem = {
-        #'T': 50,  # runtime
-        'xi': np.array([[0, 0, 0, 0, 0]]) + offset,  # initial states
-        'xf': np.array([[20, 20, np.pi/2, 0, 0]]) + offset,  # final states
-        'N': 40,  # order of the polynomials
-        'obstacles_circles': [[10+offset[0], 10+offset[1], 10]],  # n lines for n circles where columns are position x, position y, radius
-    }
-
-    #    offset = np.array([1234, 185943, 0, 0, 0])
     #    problem = {
-    #        #'T': 10,  # runtime
-    #        'xi': np.array([[0, 0, 0, 1, 0]])+ offset,  # initial states
-    #        'xf': np.array([[5, 5, np.pi / 2, 1, 0]])+offset,  # final states
+    #        'T': 40,  # runtime
+    #        'xi': np.array([[0, 0, 0, .1, 0]]),  # initial states
+    #        'xf': np.array([[10, -10, -np.pi / 2, .1, 0]]),  # final states
     #        'N': 20,  # order of the polynomials
-    #        'obstacles_circles': [[5+offset[0], 0+offset[1], 3]],  # n lines for n circles where columns are position x, position y, radius
+    #        'obstacles_circles': [[5, 0, 3]],  # n lines for n circles where columns are position x, position y, radius
     #    }
 
-
+    #    offset = np.array([491935.997, 4290797.518, 0, 0, 0])
     #    problem = {
-    #        'N': 40,
-    #        'T': 40,
-    #        'xi': np.array([
-    #            [-10, 4, np.pi/2, .1, 0],
-    #            [-10, -4, 0, 0.1, 0],
-    #            [-10, 0, np.pi/4, .1, 0],
-    #            [0, -10, 0, .1, 0],
-    #        ]),
-    #        'xf': np.array([
-    #            [10, -3, 0, .1, 0],
-    #            [10, 3, 0,  .1, 0],
-    #            [10, 0, 0,  .1, 0],
-    #            [0, 10, 0,  .1, 0],
-    #        ]),
-    #        #'obstacles_circles': [[0, 0, 2]],
-    #        #'obstacles_circles': [[0, 0, 2], [-5, -5, 2], [-5, 5, 2.5]],
+    #        'T': 50,  # runtime
+    #        'xi': np.array([[0, 0, 0, 0, 0]]) + offset,  # initial states
+    #        'xf': np.array([[20, 20, np.pi/2, 0, 0]]) + offset,  # final states
+    #        'N': 40,  # order of the polynomials
+    #        'obstacles_circles': [[10+offset[0], 10+offset[1], 10]],  # n lines for n circles where columns are position x, position y, radius
     #    }
-    #
+
+    problem = {
+        'N': 40,
+        'T': 40,
+        'xi': np.array([
+            [-10, 4, np.pi/2, .1, 0],
+            [-10, -4, 0, 0.1, 0],
+            [-10, 0, np.pi/4, .1, 0],
+            [0, -10, 0, .1, 0],
+        ]),
+        'xf': np.array([
+            [10, -3, 0, .1, 0],
+            [10, 3, 0,  .1, 0],
+            [10, 0, 0,  .1, 0],
+            [0, 10, 0,  .1, 0],
+        ]),
+        #'obstacles_circles': [[0, 0, 2]],
+        #'obstacles_circles': [[0, 0, 2], [-5, -5, 2], [-5, 5, 2.5]],
+    }
     problem = {**problem, **{
+        'input_bounds': [(-.1, .1), (-.5, .5)],
         'state_bounds': [None, None, None, (-.1, 1), (-.5, .5)],
     }}
 
     problem = {**problem, **{
         # functions
         'cost_fun_single': cost_fun_single,
-        'dynamics': dynamics5vars,
+        'dynamics': dynamics,
+        'num_inputs': 2,
         #'recover_xy': recover_xy,
     }}
 
@@ -95,14 +92,16 @@ def recover_xy(x, t_final, _):
     return np.linspace(0, t_final, 1000), sol.sol(np.linspace(0, t_final, 1000))
 
 
-def dynamics5vars(x, t_final, problem):
+def dynamics(x, t_final, problem):
     """the vehicle dynamics"""
     diff_mat = problem['DiffMat'] / t_final
-    xp, yp, psi, v, w = x.T
+    xp, yp, psi, v, w, dv, dw = x.T
     return np.vstack((
         diff_mat @ xp - v * np.cos(psi),
         diff_mat @ yp - v * np.sin(psi),
         diff_mat @ psi - w,
+        diff_mat @ v - dv,
+        diff_mat @ w - dw,
     )).flatten()
 
 
@@ -112,7 +111,8 @@ def cost_fun_single(x, t_final, problem):
         return t_final + np.sum((x[1:,:2]-x[:-1,:2])**2)
     v = x[:, 3]
     w = x[:, 4]
-    a = (problem['DiffMat'] / t_final) @ v
+    #a = (problem['DiffMat'] / t_final) @ v
+    a = x[:, 5]
     # return np.sum((problem['elev_mat']@a)**2)+2*np.sum((problem['ElevMat']@w)**2)
     return np.sum(a ** 2) + 2 * np.sum(w ** 2)
 
@@ -122,7 +122,7 @@ def dubinscar_planner(xi, xf, **problem):
     problem = {**problem, **{
         # functions
         'cost_fun_single': cost_fun_single,
-        'dynamics': dynamics5vars,
+        'dynamics': dynamics,
         'recover_xy': recover_xy,
     }}
 
