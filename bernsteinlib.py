@@ -5,7 +5,7 @@ from functools import lru_cache
 from scipy.linalg import toeplitz
 
 
-@lru_cache
+#@lru_cache
 def allcombs(m):
     return comb(m, np.arange(0,m+1))
 
@@ -15,7 +15,7 @@ def basis(k, n, tau):
     return allcombs(n)[k] * (1 - tau) ** (n - k) * tau ** k
 
 
-@lru_cache
+#@lru_cache
 def antiderivmat(n, tf):
     """Returns an integral/antiderivative matrix
 
@@ -29,7 +29,7 @@ def antideriv(p, tf, p0):
     return p0 + antiderivmat(p.shape[0] - 1, tf) @ p
 
 
-@lru_cache
+#@lru_cache
 def degrelevmat(n, m):
     """Returns a matrix for degree elevation"""
     return np.array([[comb(i, j) * comb(m - i, n - j) if max(0, i - m + n) <= j <= min(n, i) else 0
@@ -41,7 +41,7 @@ def degrelev(p, m):
     return p if p.shape[0] - 1 > m else degrelevmat(p.shape[0] - 1, m) @ p
 
 
-@lru_cache
+#@lru_cache
 def derivmat(n, tf):
     """Returns a matrix to perform derivation"""
     return n / tf * (np.hstack((np.zeros((n, 1)), np.eye(n))) - np.hstack((np.eye(n), np.zeros((n, 1)))))
@@ -59,7 +59,7 @@ def deriv(p, tf):
     return out
 
 
-@lru_cache
+#@lru_cache
 def derivelevmat(n, tf):
     """Performs derivation while preserving order"""
     return derivmat(n + 1, tf) @ degrelevmat(n, n + 1)
@@ -80,7 +80,7 @@ def eval(p, tf, times):
     return evalmat(p.shape[0] - 1, tf, times) @ p
 
 
-@lru_cache
+#@lru_cache
 def evalspacemat(n, tf, time_space):
     return np.array([[basis(j, n, ti / tf) for j in range(n + 1)] for ti in np.linspace(*time_space)])
 
@@ -131,7 +131,7 @@ def add(p1, p2):
     return p1 + p2
 
 
-@lru_cache
+#@lru_cache
 def tomonmat(n, tf):
     """Calculates a matrix to convert the control points to monomial polynomails"""
     return np.flipud([[0 if i > k else comb(n, k) * comb(k, i) * (-1) ** (k - i) for i in range(n + 1)] for k in
