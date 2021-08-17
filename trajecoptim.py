@@ -59,7 +59,7 @@ def cost_fun(x, problem):
 def eqconstr(x, problem):
     """Deals with the equality constraints"""
     x, t_final = matrify(x, problem)
-    return np.concatenate([problem['dynamics'](x[:, :, i], t_final, problem) for i in range(problem['Nv'])])
+    return np.concatenate([problem['dynamics'](x[:, :, i], i, t_final, problem) for i in range(problem['Nv'])])
 
 
 def variable_bounds(problem):
@@ -137,6 +137,8 @@ def process_problem(problem_orig):
     problem = {**problem, **{
         # common parameters
         'DiffMat': bern.derivelevmat(problem['N'], 1),
+        'AntiDiffMat': bern.antiderivmat(problem['N'], 1),
+        'elev_by_1': bern.degrelevmat(problem['N'], problem['N']+1),
         'elev_mat': bern.degrelevmat(problem['N'], problem['N'] * 10),
         'EvalMat': bern.evalspacemat(problem['N'], problem['T'] if problem['T'] != 0 else 1,
                                 (0, problem['T'] if problem['T'] != 0 else 1, 1000)),

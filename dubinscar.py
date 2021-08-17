@@ -95,14 +95,16 @@ def recover_xy(x, t_final, _):
     return np.linspace(0, t_final, 1000), sol.sol(np.linspace(0, t_final, 1000))
 
 
-def dynamics5vars(x, t_final, problem):
+def dynamics5vars(x, i, t_final, problem):
     """the vehicle dynamics"""
     diff_mat = problem['DiffMat'] / t_final
+    anti_diff_mat = problem['AntiDiffMat']
     xp, yp, psi, v, w = x.T
+    x0, y0, psi0 = problem['xi'][i, :3]
     return np.vstack((
-        diff_mat @ xp - v * np.cos(psi),
-        diff_mat @ yp - v * np.sin(psi),
-        diff_mat @ psi - w,
+        problem['elev_by_1'] @ xp  - x0   - anti_diff_mat@(v * np.cos(psi)),
+        problem['elev_by_1'] @ yp  - y0   - anti_diff_mat@(v * np.sin(psi)),
+        problem['elev_by_1'] @ psi - psi0 - anti_diff_mat@(w),
     )).flatten()
 
 
